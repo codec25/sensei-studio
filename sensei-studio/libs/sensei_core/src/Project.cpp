@@ -28,6 +28,7 @@ Project Project::createStarter(std::string name)
     project.id_ = project.generateId();
     project.name_ = std::move(name);
     project.loop_ = LoopRegion { 0.0, kDefaultLoopBeats, true };
+    project.songLengthBeats_ = kDefaultLoopBeats;
     project.harmony_ = {};
     project.harmony_.rootPitchClass = 0;
     project.harmony_.mode = ScaleMode::Major;
@@ -40,8 +41,14 @@ Project Project::createStarter(std::string name)
     drums.name = "Drums";
     drums.type = TrackType::Drums;
     drums.role = TrackRole::Drums;
-    drums.drumPattern.id = project.generateId();
-    drums.drumPattern.stepCount = kDefaultDrumSteps;
+    DrumClip drumClip;
+    drumClip.id = project.generateId();
+    drumClip.name = "Loop";
+    drumClip.startBeat = 0.0;
+    drumClip.lengthBeats = kDefaultLoopBeats;
+    drumClip.pattern.id = project.generateId();
+    drumClip.pattern.stepCount = kDefaultDrumSteps;
+    drums.drumClips.push_back(std::move(drumClip));
     project.tracks_.push_back(std::move(drums));
 
     project.tracks_.push_back(makeMidiTrack(project, "Melody", TrackRole::Melody));
@@ -99,6 +106,44 @@ const MidiClip* Project::findClip(Id trackId, Id clipId) const noexcept
             if (clip.id == clipId)
                 return &clip;
     }
+    return nullptr;
+}
+
+DrumClip* Project::findDrumClip(Id trackId, Id clipId) noexcept
+{
+    if (auto* track = findTrack(trackId))
+    {
+        for (auto& clip : track->drumClips)
+            if (clip.id == clipId)
+                return &clip;
+    }
+    return nullptr;
+}
+
+const DrumClip* Project::findDrumClip(Id trackId, Id clipId) const noexcept
+{
+    if (const auto* track = findTrack(trackId))
+    {
+        for (const auto& clip : track->drumClips)
+            if (clip.id == clipId)
+                return &clip;
+    }
+    return nullptr;
+}
+
+Section* Project::findSection(Id sectionId) noexcept
+{
+    for (auto& section : sections_)
+        if (section.id == sectionId)
+            return &section;
+    return nullptr;
+}
+
+const Section* Project::findSection(Id sectionId) const noexcept
+{
+    for (const auto& section : sections_)
+        if (section.id == sectionId)
+            return &section;
     return nullptr;
 }
 
@@ -167,8 +212,8 @@ std::size_t Project::totalDrumHitCount() const noexcept
 {
     std::size_t count = 0;
     for (const auto& track : tracks_)
-        if (track.type == TrackType::Drums)
-            count += track.drumPattern.hits.size();
+        for (const auto& clip : track.drumClips)
+            count += clip.pattern.hits.size();
     return count;
 }
 

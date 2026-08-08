@@ -22,18 +22,17 @@ public:
     {
         g.fillAll(juce::Colour(0xff11151a));
         g.setColour(juce::Colour(0xff9ca6b5));
-        g.drawText("DRUM GRID · click to toggle · 4 bars × 16ths",
+        g.drawText("DRUM GRID · selected clip · click to toggle",
                    getLocalBounds().removeFromTop(20).reduced(6, 0),
                    juce::Justification::centredLeft, false);
 
-        if (document_ == nullptr)
-            return;
-        const auto* track = document_->project().findTrackByRole(sensei::core::TrackRole::Drums);
-        if (track == nullptr)
+        const auto* clip = activeClip();
+        if (clip == nullptr)
             return;
 
         static constexpr const char* names[] { "Kick", "Snare", "Hat" };
-        const int steps = track->drumPattern.stepCount;
+        const int steps = clip->pattern.stepCount > 0 ? clip->pattern.stepCount
+                                                     : sensei::core::kDefaultDrumSteps;
         const float cellW = (float) juce::jmax(1, (getWidth() - 56) / juce::jmin(steps, 64));
         const float cellH = 28.0f;
 
@@ -47,7 +46,7 @@ public:
             for (int step = 0; step < steps; ++step)
             {
                 const float x = 56.0f + step * cellW;
-                const bool on = track->drumPattern.hasHit(step, static_cast<sensei::core::DrumLane>(lane));
+                const bool on = clip->pattern.hasHit(step, static_cast<sensei::core::DrumLane>(lane));
                 const bool beat = (step % 4) == 0;
                 g.setColour(on ? juce::Colour(0xffd5ff5c)
                                : (beat ? juce::Colour(0xff2a303a) : juce::Colour(0xff1e222a)));
@@ -61,10 +60,12 @@ public:
         if (document_ == nullptr)
             return;
         auto* track = document_->project().findTrackByRole(sensei::core::TrackRole::Drums);
-        if (track == nullptr)
+        auto* clip = activeClip();
+        if (track == nullptr || clip == nullptr)
             return;
 
-        const int steps = track->drumPattern.stepCount;
+        const int steps = clip->pattern.stepCount > 0 ? clip->pattern.stepCount
+                                                     : sensei::core::kDefaultDrumSteps;
         const float cellW = (float) juce::jmax(1, (getWidth() - 56) / juce::jmin(steps, 64));
         const float cellH = 28.0f;
         if (event.x < 56)
@@ -73,13 +74,38 @@ public:
         const int step = juce::jlimit(0, steps - 1, (int) ((event.x - 56) / cellW));
         const int lane = juce::jlimit(0, sensei::core::kDrumLaneCount - 1,
                                       (int) ((event.y - 28) / (cellH + 6.0f)));
+        document_->setSelectedClipId(track->id, clip->id);
         document_->execute(std::make_unique<sensei::core::ToggleDrumHitCommand>(
-            track->id, step, static_cast<sensei::core::DrumLane>(lane), 0.85f));
+            track->id, clip->id, step, static_cast<sensei::core::DrumLane>(lane), 0.85f));
         repaint();
         if (onEdited)
             onEdited();
     }
 
 private:
+    [[nodiscard]] sensei::core::DrumClip* activeClip() noexcept
+    {
+        if (document_ == nullptr)
+            return nullptr;
+        auto* track = document_->project().findTrackByRole(sensei::core::TrackRole::Drums);
+        if (track == nullptr || track->drumClips.empty())
+            return nullptr;
+        if (auto* clip = document_->project().findDrumClip(track->id, document_->selectedClipId()))
+            return clip;
+        return &track->drumClips.front();
+    }
+
+    [[nodiscard]] const sensei::core::DrumClip* activeClip() const noexcept
+    {
+        if (document_ == nullptr)
+            return nullptr;
+        const auto* track = document_->project().findTrackByRole(sensei::core::TrackRole::Drums);
+        if (track == nullptr || track->drumClips.empty())
+            return nullptr;
+        if (const auto* clip = document_->project().findDrumClip(track->id, document_->selectedClipId()))
+            return clip;
+        return &track->drumClips.front();
+    }
+
     sensei::core::Document* document_ = nullptr;
 };

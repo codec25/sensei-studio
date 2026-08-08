@@ -16,7 +16,13 @@ enum class ObservationKind
     DrumPatternCreated,
     RootBassAdded,
     UserModifiedGenerated,
-    FirstCompleteLoop
+    FirstCompleteLoop,
+    FirstArrangementCreated,
+    LoopDuplicated,
+    FirstVariationCreated,
+    IntroCreated,
+    ContrastIntroduced,
+    FirstFullSongStructureCreated
 };
 
 struct Observation

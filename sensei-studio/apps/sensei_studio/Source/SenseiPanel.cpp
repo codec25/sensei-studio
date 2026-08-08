@@ -10,7 +10,8 @@ SenseiPanel::SenseiPanel()
     advice_.setJustificationType(juce::Justification::topLeft);
     modeLabel_.setColour(juce::Label::textColourId, juce::Colour(0xff9ca6b5));
 
-    for (auto* b : { &likeBtn_, &doBtn_, &whyBtn_, &laterBtn_, &drumsBtn_, &bassBtn_ })
+    for (auto* b : { &likeBtn_, &doBtn_, &whyBtn_, &laterBtn_, &drumsBtn_, &bassBtn_,
+                     &songBtn_, &variationBtn_, &introBtn_ })
         addAndMakeVisible(*b);
 
     addAndMakeVisible(title_);
@@ -65,6 +66,24 @@ void SenseiPanel::bindChoices()
         refresh(true);
         if (onChanged) onChanged();
     };
+    songBtn_.onClick = [this] {
+        if (document_ == nullptr) return;
+        document_->applySongShape();
+        refresh(true);
+        if (onChanged) onChanged();
+    };
+    variationBtn_.onClick = [this] {
+        if (document_ == nullptr) return;
+        document_->applyVariationThinDrums();
+        refresh(true);
+        if (onChanged) onChanged();
+    };
+    introBtn_.onClick = [this] {
+        if (document_ == nullptr) return;
+        document_->applyIntroContrast();
+        refresh(true);
+        if (onChanged) onChanged();
+    };
 }
 
 void SenseiPanel::refresh(bool force)
@@ -84,12 +103,15 @@ void SenseiPanel::refresh(bool force)
                     juce::dontSendNotification);
 
     const auto& lesson = document_->lesson();
-    modeLabel_.setText(lesson.quiet ? "Create mode · quiet" : "Guided first loop",
+    modeLabel_.setText(lesson.quiet ? "Create mode · quiet" : "Guided song shape",
                        juce::dontSendNotification);
 
     drumsBtn_.setVisible(lesson.chordsAccepted && ! lesson.drumsAccepted && ! lesson.quiet);
     bassBtn_.setVisible(lesson.drumsAccepted && ! lesson.bassAccepted && ! lesson.quiet
                         && ! document_->project().harmony().chords.empty());
+    songBtn_.setVisible(lesson.celebratedCompleteLoop && ! lesson.songShapeAccepted && ! lesson.quiet);
+    variationBtn_.setVisible(lesson.songShapeAccepted && ! lesson.variationAccepted && ! lesson.quiet);
+    introBtn_.setVisible(lesson.songShapeAccepted && ! lesson.quiet);
     resized();
 }
 
@@ -122,11 +144,17 @@ void SenseiPanel::resized()
     whyBtn_.setBounds(row.removeFromLeft(row.getWidth() / 2).reduced(2));
     laterBtn_.setBounds(row.reduced(2));
     area.removeFromTop(10);
-    if (drumsBtn_.isVisible())
-    {
-        drumsBtn_.setBounds(area.removeFromTop(30));
-        area.removeFromTop(6);
-    }
-    if (bassBtn_.isVisible())
-        bassBtn_.setBounds(area.removeFromTop(30));
+
+    auto place = [&](juce::TextButton& b) {
+        if (b.isVisible())
+        {
+            b.setBounds(area.removeFromTop(30));
+            area.removeFromTop(6);
+        }
+    };
+    place(drumsBtn_);
+    place(bassBtn_);
+    place(songBtn_);
+    place(introBtn_);
+    place(variationBtn_);
 }

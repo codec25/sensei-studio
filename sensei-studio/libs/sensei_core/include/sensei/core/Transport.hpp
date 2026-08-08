@@ -48,6 +48,16 @@ public:
         loopEnabled_.store(enabled, std::memory_order_release);
     }
 
+    void setSongLengthBeats(double beats) noexcept
+    {
+        songLengthBeats_.store(beats > 0.0 ? beats : kDefaultLoopBeats, std::memory_order_release);
+    }
+
+    [[nodiscard]] double songLengthBeats() const noexcept
+    {
+        return songLengthBeats_.load(std::memory_order_acquire);
+    }
+
     [[nodiscard]] bool loopEnabled() const noexcept
     {
         return loopEnabled_.load(std::memory_order_acquire);
@@ -80,7 +90,22 @@ public:
 
         double beats = positionBeats_.load(std::memory_order_relaxed)
                        + deltaSeconds * (bpmValue / 60.0);
-        beats = wrapBeats(beats);
+
+        if (loopEnabled_.load(std::memory_order_relaxed))
+        {
+            beats = wrapBeats(beats);
+        }
+        else
+        {
+            // Whole-song mode: stop cleanly at song length (no wrap).
+            const double songLen = songLengthBeats_.load(std::memory_order_relaxed);
+            if (songLen > 0.0 && beats >= songLen)
+            {
+                beats = songLen;
+                playing_.store(false, std::memory_order_release);
+            }
+        }
+
         positionBeats_.store(beats, std::memory_order_relaxed);
     }
 
@@ -128,6 +153,7 @@ private:
     std::atomic<bool> loopEnabled_ { true };
     std::atomic<double> loopStartBeats_ { 0.0 };
     std::atomic<double> loopLengthBeats_ { kDefaultLoopBeats };
+    std::atomic<double> songLengthBeats_ { kDefaultLoopBeats };
 };
 
 } // namespace sensei::core

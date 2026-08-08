@@ -57,19 +57,30 @@ struct DrumPattern
     }
 };
 
-// Maps drum sequencer steps onto the project loop. Invalid/zero stepCount falls
-// back to kDefaultDrumSteps so playback stays deterministic.
-[[nodiscard]] inline double drumBeatPerStep(double loopLengthBeats, int stepCount) noexcept
+// Placeable drum clip on the arrangement timeline. Pattern steps map to
+// this clip's lengthBeats (not the whole song).
+struct DrumClip
+{
+    Id id = kInvalidId;
+    std::string name;
+    double startBeat = 0.0;
+    double lengthBeats = kDefaultLoopBeats;
+    DrumPattern pattern;
+};
+
+// Maps drum sequencer steps onto a clip (or loop) length. Invalid/zero
+// stepCount falls back to kDefaultDrumSteps so playback stays deterministic.
+[[nodiscard]] inline double drumBeatPerStep(double lengthBeats, int stepCount) noexcept
 {
     const int steps = stepCount > 0 ? stepCount : kDefaultDrumSteps;
-    if (! (loopLengthBeats > 0.0))
-        loopLengthBeats = kDefaultLoopBeats;
-    return loopLengthBeats / static_cast<double>(steps);
+    if (! (lengthBeats > 0.0))
+        lengthBeats = kDefaultLoopBeats;
+    return lengthBeats / static_cast<double>(steps);
 }
 
-[[nodiscard]] inline double drumStepToBeat(int step, double loopLengthBeats, int stepCount) noexcept
+[[nodiscard]] inline double drumStepToBeat(int step, double lengthBeats, int stepCount) noexcept
 {
-    return static_cast<double>(step) * drumBeatPerStep(loopLengthBeats, stepCount);
+    return static_cast<double>(step) * drumBeatPerStep(lengthBeats, stepCount);
 }
 
 struct Track
@@ -79,7 +90,7 @@ struct Track
     TrackType type = TrackType::Midi;
     TrackRole role = TrackRole::Melody;
     std::vector<MidiClip> clips;
-    DrumPattern drumPattern;
+    std::vector<DrumClip> drumClips;
     // True while track content still originates from a Sensei-generated action.
     bool generatedOrigin = false;
 };

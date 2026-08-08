@@ -45,14 +45,15 @@ struct ScheduledDrumHit
 
 struct SequenceSnapshot
 {
-    static constexpr std::size_t kMaxNotes = 512;
-    static constexpr std::size_t kMaxDrumHits = 256;
+    static constexpr std::size_t kMaxNotes = 2048;
+    static constexpr std::size_t kMaxDrumHits = 1024;
 
     std::uint64_t generation = 0;
     double bpm = kDefaultBpm;
     double loopStartBeats = 0.0;
     double loopLengthBeats = kDefaultLoopBeats;
     bool loopEnabled = true;
+    double songLengthBeats = kDefaultLoopBeats;
     std::uint32_t noteCount = 0;
     std::uint32_t drumHitCount = 0;
     std::array<ScheduledNote, kMaxNotes> notes {};

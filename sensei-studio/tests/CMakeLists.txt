@@ -12,6 +12,7 @@ add_executable(sensei_core_tests
   core/MultiTrackTests.cpp
   core/ChordTests.cpp
   core/DrumBassLessonTests.cpp
+  core/ArrangementTests.cpp
   engine/MidiEventBufferTests.cpp
 )
 

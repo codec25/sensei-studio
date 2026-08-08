@@ -81,7 +81,6 @@ public:
             oldHarmony_ = project.harmony();
             captured_ = true;
         }
-        // Assign IDs to chord events missing them.
         for (auto& chord : newHarmony_.chords)
             if (chord.id == kInvalidId)
                 chord.id = project.generateId();
@@ -105,8 +104,8 @@ private:
 class ReplaceDrumPatternCommand final : public Command
 {
 public:
-    ReplaceDrumPatternCommand(Id trackId, DrumPattern pattern)
-        : trackId_(trackId), newPattern_(std::move(pattern))
+    ReplaceDrumPatternCommand(Id trackId, Id clipId, DrumPattern pattern)
+        : trackId_(trackId), clipId_(clipId), newPattern_(std::move(pattern))
     {
     }
 
@@ -114,32 +113,33 @@ public:
 
     bool perform(Project& project) override
     {
-        auto* track = project.findTrack(trackId_);
-        if (track == nullptr || track->type != TrackType::Drums)
+        auto* clip = project.findDrumClip(trackId_, clipId_);
+        if (clip == nullptr)
             return false;
 
         if (! captured_)
         {
-            oldPattern_ = track->drumPattern;
+            oldPattern_ = clip->pattern;
             captured_ = true;
         }
 
         if (newPattern_.id == kInvalidId)
             newPattern_.id = project.generateId();
-        track->drumPattern = newPattern_;
+        clip->pattern = newPattern_;
         return true;
     }
 
     void undo(Project& project) override
     {
-        auto* track = project.findTrack(trackId_);
-        if (track == nullptr || ! captured_)
+        auto* clip = project.findDrumClip(trackId_, clipId_);
+        if (clip == nullptr || ! captured_)
             return;
-        track->drumPattern = oldPattern_;
+        clip->pattern = oldPattern_;
     }
 
 private:
     Id trackId_;
+    Id clipId_;
     DrumPattern newPattern_;
     DrumPattern oldPattern_;
     bool captured_ = false;
@@ -148,8 +148,8 @@ private:
 class ToggleDrumHitCommand final : public Command
 {
 public:
-    ToggleDrumHitCommand(Id trackId, int step, DrumLane lane, float velocity = 0.8f)
-        : trackId_(trackId), step_(step), lane_(lane), velocity_(velocity)
+    ToggleDrumHitCommand(Id trackId, Id clipId, int step, DrumLane lane, float velocity = 0.8f)
+        : trackId_(trackId), clipId_(clipId), step_(step), lane_(lane), velocity_(velocity)
     {
     }
 
@@ -157,11 +157,11 @@ public:
 
     bool perform(Project& project) override
     {
-        auto* track = project.findTrack(trackId_);
-        if (track == nullptr || track->type != TrackType::Drums)
+        auto* clip = project.findDrumClip(trackId_, clipId_);
+        if (clip == nullptr)
             return false;
 
-        auto& hits = track->drumPattern.hits;
+        auto& hits = clip->pattern.hits;
         const auto it = std::find_if(hits.begin(), hits.end(), [&](const DrumHit& h) {
             return h.step == step_ && h.lane == lane_;
         });
@@ -183,11 +183,11 @@ public:
 
     void undo(Project& project) override
     {
-        auto* track = project.findTrack(trackId_);
-        if (track == nullptr || ! captured_)
+        auto* clip = project.findDrumClip(trackId_, clipId_);
+        if (clip == nullptr || ! captured_)
             return;
 
-        auto& hits = track->drumPattern.hits;
+        auto& hits = clip->pattern.hits;
         const auto it = std::find_if(hits.begin(), hits.end(), [&](const DrumHit& h) {
             return h.step == step_ && h.lane == lane_;
         });
@@ -205,6 +205,7 @@ public:
 
 private:
     Id trackId_;
+    Id clipId_;
     int step_;
     DrumLane lane_;
     float velocity_;

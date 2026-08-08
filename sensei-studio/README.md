@@ -48,3 +48,4 @@ ctest --test-dir build --output-on-failure
 - **A** — native shell, Core transport, SimpleSynth audition.
 - **B** — piano roll, 4-bar loop playback, undo/redo, safe snapshots.
 - **C** — multi-track guided first loop: chords, drums, root bass, Sensei flow (no AI).
+- **D** — arrangement timeline, song sections, clip ops, turn-loop-into-song flow.
