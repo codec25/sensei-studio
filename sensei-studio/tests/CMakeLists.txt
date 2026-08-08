@@ -3,6 +3,18 @@ include(Catch)
 
 add_executable(sensei_core_tests
   core/TransportTests.cpp
+  core/ProjectModelTests.cpp
+  core/NoteEditingTests.cpp
+  core/LoopTransportTests.cpp
+  core/UndoRedoTests.cpp
+  core/SenseiObservationTests.cpp
+  core/SnapshotPublisherTests.cpp
+  engine/MidiEventBufferTests.cpp
+)
+
+target_include_directories(sensei_core_tests
+  PRIVATE
+    ${CMAKE_SOURCE_DIR}/libs/sensei_engine/include
 )
 
 target_link_libraries(sensei_core_tests

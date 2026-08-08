@@ -1,6 +1,8 @@
 #pragma once
 
+#include "sensei/core/SequenceSnapshot.hpp"
 #include "sensei/core/Transport.hpp"
+#include "sensei/engine/MidiScheduler.hpp"
 #include "sensei/engine/SimpleSynth.hpp"
 
 #include <juce_audio_devices/juce_audio_devices.h>
@@ -9,7 +11,8 @@
 
 namespace sensei::engine {
 
-// Owns the audio device callback. Depends on Core transport reads only.
+// Owns the audio device callback.
+// Depends on Core transport + SnapshotPublisher reads only.
 // Must not depend on UI, teaching logic, networking, or AI.
 class AudioEngine final : public juce::AudioIODeviceCallback
 {
@@ -21,6 +24,7 @@ public:
     AudioEngine& operator=(const AudioEngine&) = delete;
 
     void setTransport(sensei::core::Transport* transport) noexcept;
+    void setSnapshotPublisher(const sensei::core::SnapshotPublisher* publisher) noexcept;
 
     // Initializes the default output device. Call from the message thread.
     bool initialise();
@@ -46,9 +50,10 @@ public:
 private:
     juce::AudioDeviceManager deviceManager_;
     std::atomic<sensei::core::Transport*> transport_ { nullptr };
+    std::atomic<const sensei::core::SnapshotPublisher*> snapshots_ { nullptr };
     SimpleSynth synth_;
+    MidiScheduler scheduler_;
     std::atomic<bool> initialised_ { false };
-    std::atomic<bool> wasPlaying_ { false };
     std::atomic<double> sampleRate_ { 44100.0 };
 };
 

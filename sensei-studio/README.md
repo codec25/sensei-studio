@@ -5,17 +5,17 @@ The next-generation music production environment that teaches producers while th
 ## Layout
 
 - `prototype/` — browser UX reference (Sensei Studio 0.3). Not the shipping app.
-- `libs/sensei_core/` — pure C++20 core (transport, later project/teaching model).
-- `libs/sensei_engine/` — audio device + temporary SimpleSynth.
-- `apps/sensei_studio/` — native JUCE application.
-- `docs/ARCHITECTURE.md` — layering and dependency rules.
+- `libs/sensei_core/` — pure C++20 core (project model, transport, commands, Sensei analyzer).
+- `libs/sensei_engine/` — audio device, MIDI scheduler, temporary SimpleSynth.
+- `apps/sensei_studio/` — native JUCE application (piano roll + transport + Sensei panel).
+- `docs/ARCHITECTURE.md` — layering, snapshot publication, dependency rules.
 - `tests/` — Catch2 Core tests.
 
 ## Browser prototype
 
 Open `prototype/index.html` in a desktop browser, then click **Start creating**.
 
-## Native app (Milestone A)
+## Native app
 
 Requirements: CMake ≥ 3.24, a C++20 compiler, and platform audio/GUI libs.
 JUCE **8.0.6** and Catch2 **v3.7.1** are fetched at configure time.
@@ -43,6 +43,8 @@ cmake --build build -j
 ctest --test-dir build --output-on-failure
 ```
 
-Milestone A provides: native shell, Core-owned transport (Play/Stop/BPM),
-audio device init, SimpleSynth audition keyboard, and a static Sensei placeholder.
-No AI, piano roll, plugins, or mixer yet.
+### Current milestones
+
+- **A** — native shell, Core transport, SimpleSynth audition.
+- **B** — starter project, piano roll editing, 4-bar loop playback, undo/redo,
+  deterministic Sensei observations (no AI).

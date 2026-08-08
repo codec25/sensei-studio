@@ -1,5 +1,6 @@
 add_library(sensei_core STATIC
   src/Transport.cpp
+  src/Project.cpp
 )
 
 add_library(sensei::core ALIAS sensei_core)

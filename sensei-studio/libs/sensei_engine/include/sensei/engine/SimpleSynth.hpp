@@ -6,12 +6,12 @@
 
 namespace sensei::engine {
 
-// Deliberately temporary built-in voice for Milestone A.
+// Deliberately temporary built-in voice (Milestone A/B).
 // Realtime-safe: no heap allocation in prepare/process/noteOn/noteOff.
 class SimpleSynth
 {
 public:
-    static constexpr int kMaxVoices = 8;
+    static constexpr int kMaxVoices = 12;
 
     void prepare(double sampleRate) noexcept
     {
