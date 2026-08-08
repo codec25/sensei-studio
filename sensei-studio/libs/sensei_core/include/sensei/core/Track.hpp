@@ -57,6 +57,21 @@ struct DrumPattern
     }
 };
 
+// Maps drum sequencer steps onto the project loop. Invalid/zero stepCount falls
+// back to kDefaultDrumSteps so playback stays deterministic.
+[[nodiscard]] inline double drumBeatPerStep(double loopLengthBeats, int stepCount) noexcept
+{
+    const int steps = stepCount > 0 ? stepCount : kDefaultDrumSteps;
+    if (! (loopLengthBeats > 0.0))
+        loopLengthBeats = kDefaultLoopBeats;
+    return loopLengthBeats / static_cast<double>(steps);
+}
+
+[[nodiscard]] inline double drumStepToBeat(int step, double loopLengthBeats, int stepCount) noexcept
+{
+    return static_cast<double>(step) * drumBeatPerStep(loopLengthBeats, stepCount);
+}
+
 struct Track
 {
     Id id = kInvalidId;
@@ -65,6 +80,8 @@ struct Track
     TrackRole role = TrackRole::Melody;
     std::vector<MidiClip> clips;
     DrumPattern drumPattern;
+    // True while track content still originates from a Sensei-generated action.
+    bool generatedOrigin = false;
 };
 
 } // namespace sensei::core

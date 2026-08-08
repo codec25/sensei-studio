@@ -16,6 +16,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace sensei::core {
 
@@ -60,14 +61,11 @@ public:
         publishSnapshot();
     }
 
+    // User-facing commands. May emit UserModifiedGenerated when editing
+    // material that still carries a Sensei generated-origin mark.
     bool execute(std::unique_ptr<Command> command)
     {
-        if (! history_.execute(project_, std::move(command)))
-            return false;
-        maybeMarkUserModified();
-        maybeCelebrateCompleteLoop();
-        publishSnapshot();
-        return true;
+        return executeInternal(std::move(command), false);
     }
 
     bool undo()
@@ -101,9 +99,10 @@ public:
         compound->add(std::make_unique<ReplaceClipNotesCommand>(
             track->id, track->clips.front().id, std::move(material.notes)));
 
-        if (! execute(std::move(compound)))
+        if (! executeInternal(std::move(compound), true))
             return false;
 
+        track->generatedOrigin = true;
         pushEvent(LearningEventKind::ChordProgressionCreated);
         lesson_.chordsAccepted = true;
         lesson_.step = LessonStep::OfferDrums;
@@ -126,9 +125,10 @@ public:
 
         auto compound = std::make_unique<CompoundCommand>("Add starter drums");
         compound->add(std::make_unique<ReplaceDrumPatternCommand>(track->id, std::move(pattern)));
-        if (! execute(std::move(compound)))
+        if (! executeInternal(std::move(compound), true))
             return false;
 
+        track->generatedOrigin = true;
         pushEvent(LearningEventKind::DrumPatternCreated);
         lesson_.drumsAccepted = true;
         lesson_.step = LessonStep::OfferBass;
@@ -150,9 +150,10 @@ public:
         auto compound = std::make_unique<CompoundCommand>("Add root-note bass");
         compound->add(std::make_unique<ReplaceClipNotesCommand>(
             track->id, track->clips.front().id, std::move(notes)));
-        if (! execute(std::move(compound)))
+        if (! executeInternal(std::move(compound), true))
             return false;
 
+        track->generatedOrigin = true;
         pushEvent(LearningEventKind::RootBassAdded);
         lesson_.bassAccepted = true;
         maybeCelebrateCompleteLoop();
@@ -232,22 +233,18 @@ public:
             }
             else if (track.type == TrackType::Drums)
             {
-                const double secondsPerStep = project_.loop().lengthBeats
-                                              / static_cast<double>(track.drumPattern.stepCount > 0
-                                                                        ? track.drumPattern.stepCount
-                                                                        : kDefaultDrumSteps);
-                // step -> beat: step * (1/16 note) = step * 0.25
+                const double beatPerStep = drumBeatPerStep(project_.loop().lengthBeats,
+                                                          track.drumPattern.stepCount);
                 for (const auto& hit : track.drumPattern.hits)
                 {
                     if (slot.drumHitCount >= SequenceSnapshot::kMaxDrumHits)
                         break;
                     ScheduledDrumHit d;
-                    d.beat = static_cast<double>(hit.step) * 0.25;
+                    d.beat = static_cast<double>(hit.step) * beatPerStep;
                     d.velocity = hit.velocity;
                     d.program = drumProgramForLane(hit.lane);
                     slot.drumHits[slot.drumHitCount++] = d;
                 }
-                (void) secondsPerStep;
             }
         }
 
@@ -256,6 +253,89 @@ public:
     }
 
 private:
+    struct GeneratedFingerprint
+    {
+        Id trackId = kInvalidId;
+        std::uint64_t digest = 0;
+    };
+
+    bool executeInternal(std::unique_ptr<Command> command, bool fromSensei)
+    {
+        const auto before = fromSensei ? std::vector<GeneratedFingerprint> {}
+                                       : captureGeneratedFingerprints();
+
+        if (! history_.execute(project_, std::move(command)))
+            return false;
+
+        if (! fromSensei && generatedContentChanged(before))
+            maybeMarkUserModified();
+
+        maybeCelebrateCompleteLoop();
+        publishSnapshot();
+        return true;
+    }
+
+    [[nodiscard]] std::vector<GeneratedFingerprint> captureGeneratedFingerprints() const
+    {
+        std::vector<GeneratedFingerprint> out;
+        for (const auto& track : project_.tracks())
+        {
+            if (! track.generatedOrigin)
+                continue;
+            out.push_back({ track.id, contentDigest(track) });
+        }
+        return out;
+    }
+
+    [[nodiscard]] bool generatedContentChanged(const std::vector<GeneratedFingerprint>& before) const
+    {
+        for (const auto& fp : before)
+        {
+            const auto* track = project_.findTrack(fp.trackId);
+            if (track == nullptr || ! track->generatedOrigin)
+                continue;
+            if (contentDigest(*track) != fp.digest)
+                return true;
+        }
+        return false;
+    }
+
+    [[nodiscard]] static std::uint64_t contentDigest(const Track& track) noexcept
+    {
+        std::uint64_t digest = 1469598103934665603ull; // FNV-1a offset
+        auto mix = [&digest](std::uint64_t value) {
+            digest ^= value;
+            digest *= 1099511628211ull;
+        };
+
+        if (track.type == TrackType::Drums)
+        {
+            mix(static_cast<std::uint64_t>(track.drumPattern.stepCount));
+            mix(track.drumPattern.hits.size());
+            for (const auto& hit : track.drumPattern.hits)
+            {
+                mix(static_cast<std::uint64_t>(hit.step));
+                mix(static_cast<std::uint64_t>(hit.lane));
+                mix(static_cast<std::uint64_t>(hit.velocity * 1000.0f));
+            }
+            return digest;
+        }
+
+        for (const auto& clip : track.clips)
+        {
+            mix(clip.notes.size());
+            for (const auto& note : clip.notes)
+            {
+                mix(static_cast<std::uint64_t>(note.id));
+                mix(static_cast<std::uint64_t>(note.pitch));
+                mix(static_cast<std::uint64_t>(note.startBeat * 1000.0));
+                mix(static_cast<std::uint64_t>(note.lengthBeats * 1000.0));
+                mix(static_cast<std::uint64_t>(note.velocity * 1000.0f));
+            }
+        }
+        return digest;
+    }
+
     static SoundProgram programForRole(TrackRole role) noexcept
     {
         switch (role)
@@ -295,12 +375,16 @@ private:
 
     void maybeMarkUserModified()
     {
-        // Lightweight: if user edits after generated material exists, note it once.
-        if ((lesson_.chordsAccepted || lesson_.drumsAccepted || lesson_.bassAccepted)
-            && lesson_.events.empty())
-        {
+        if (lesson_.userModifiedGeneratedEmitted)
             return;
-        }
+
+        pushEvent(LearningEventKind::UserModifiedGenerated);
+        lesson_.userModifiedGeneratedEmitted = true;
+
+        // After the first acknowledged edit, stop treating material as generated-origin
+        // so further edits do not re-trigger tracking work.
+        for (auto& track : project_.tracks())
+            track.generatedOrigin = false;
     }
 
     Project project_;

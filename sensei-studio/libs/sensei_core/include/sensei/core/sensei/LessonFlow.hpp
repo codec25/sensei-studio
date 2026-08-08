@@ -52,6 +52,7 @@ struct LessonState
     bool drumsAccepted = false;
     bool bassAccepted = false;
     bool celebratedCompleteLoop = false;
+    bool userModifiedGeneratedEmitted = false;
     bool quiet = false;
     std::string lastWhy;
     std::vector<LearningEvent> events;
