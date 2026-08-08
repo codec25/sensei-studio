@@ -17,6 +17,9 @@ enum class LessonStep
     OfferDrums,
     OfferBass,
     CelebrateLoop,
+    OfferSongShape,
+    OfferVariation,
+    CelebrateSong,
     Quiet
 };
 
@@ -34,7 +37,13 @@ enum class LearningEventKind
     DrumPatternCreated,
     RootBassAdded,
     UserModifiedGenerated,
-    FirstCompleteLoop
+    FirstCompleteLoop,
+    FirstArrangementCreated,
+    LoopDuplicated,
+    FirstVariationCreated,
+    IntroCreated,
+    ContrastIntroduced,
+    FirstFullSongStructureCreated
 };
 
 struct LearningEvent
@@ -52,6 +61,9 @@ struct LessonState
     bool drumsAccepted = false;
     bool bassAccepted = false;
     bool celebratedCompleteLoop = false;
+    bool songShapeAccepted = false;
+    bool variationAccepted = false;
+    bool celebratedSong = false;
     bool userModifiedGeneratedEmitted = false;
     bool quiet = false;
     std::string lastWhy;
@@ -61,7 +73,12 @@ struct LessonState
 [[nodiscard]] inline bool trackHasNotes(const Track& track) noexcept
 {
     if (track.type == TrackType::Drums)
-        return ! track.drumPattern.hits.empty();
+    {
+        for (const auto& clip : track.drumClips)
+            if (! clip.pattern.hits.empty())
+                return true;
+        return false;
+    }
     for (const auto& clip : track.clips)
         if (! clip.notes.empty())
             return true;
@@ -81,6 +98,23 @@ struct LessonState
             drums = true;
     }
     return chords && bass && drums;
+}
+
+[[nodiscard]] inline bool hasFullSongStructure(const Project& project) noexcept
+{
+    bool intro = false, main = false, variation = false, outro = false;
+    for (const auto& s : project.sections())
+    {
+        if (s.label == SectionLabel::Intro || s.name == "Intro")
+            intro = true;
+        if (s.name == "Main" || s.label == SectionLabel::Chorus)
+            main = true;
+        if (s.name == "Variation")
+            variation = true;
+        if (s.label == SectionLabel::Outro || s.name == "Outro")
+            outro = true;
+    }
+    return intro && main && variation && outro;
 }
 
 inline LearningEvent makeEvent(LearningEventKind kind)
@@ -106,6 +140,30 @@ inline LearningEvent makeEvent(LearningEventKind kind)
         case LearningEventKind::FirstCompleteLoop:
             return { kind, "First complete 4-bar loop",
                      "Chords, drums, and bass are all present inside the loop.",
+                     "If you like it, keep it — or turn it into a simple song shape." };
+        case LearningEventKind::FirstArrangementCreated:
+            return { kind, "First arrangement created",
+                     "Your loop now lives on a longer timeline with named sections.",
+                     "Sections are a map. Clips are what you hear." };
+        case LearningEventKind::LoopDuplicated:
+            return { kind, "Loop duplicated",
+                     "The 4-bar idea was repeated to fill longer sections without stretching timing.",
+                     "Repetition is how short ideas become song-length." };
+        case LearningEventKind::FirstVariationCreated:
+            return { kind, "First variation created",
+                     "One section now differs from the others in a small, audible way.",
+                     "Contrast helps listeners feel a beginning, middle, and end." };
+        case LearningEventKind::IntroCreated:
+            return { kind, "Intro created",
+                     "The song has a dedicated opening section before the main idea.",
+                     "Intros can be thinner so the main section feels bigger." };
+        case LearningEventKind::ContrastIntroduced:
+            return { kind, "Contrast introduced",
+                     "Something is quieter, thinner, or enters later across sections.",
+                     "Contrast helps listeners feel a beginning, middle, and end." };
+        case LearningEventKind::FirstFullSongStructureCreated:
+            return { kind, "First structured song",
+                     "Intro, Main, Variation, and Outro are in place on the timeline.",
                      "If you like it, keep it. Sensei will stay quiet unless you ask." };
     }
     return {};
@@ -127,15 +185,28 @@ inline Observation observationFromLesson(const LessonState& lesson, const Projec
             case LearningEventKind::DrumPatternCreated: o.kind = ObservationKind::DrumPatternCreated; break;
             case LearningEventKind::RootBassAdded: o.kind = ObservationKind::RootBassAdded; break;
             case LearningEventKind::UserModifiedGenerated: o.kind = ObservationKind::UserModifiedGenerated; break;
+            case LearningEventKind::FirstArrangementCreated: o.kind = ObservationKind::FirstArrangementCreated; break;
+            case LearningEventKind::LoopDuplicated: o.kind = ObservationKind::LoopDuplicated; break;
+            case LearningEventKind::FirstVariationCreated: o.kind = ObservationKind::FirstVariationCreated; break;
+            case LearningEventKind::IntroCreated: o.kind = ObservationKind::IntroCreated; break;
+            case LearningEventKind::ContrastIntroduced: o.kind = ObservationKind::ContrastIntroduced; break;
+            case LearningEventKind::FirstFullSongStructureCreated: o.kind = ObservationKind::FirstFullSongStructureCreated; break;
         }
         return o;
+    }
+
+    if (hasFullSongStructure(project))
+    {
+        return { ObservationKind::FirstFullSongStructureCreated, "First structured song",
+                 "Intro, Main, Variation, and Outro are in place on the timeline.",
+                 "If you like it, keep it." };
     }
 
     if (isCompleteLoop(project))
     {
         return { ObservationKind::FirstCompleteLoop, "First complete 4-bar loop",
                  "Chords, drums, and bass are all present inside the loop.",
-                 "If you like it, keep it." };
+                 "Want to turn this loop into a simple song shape?" };
     }
 
     return { ObservationKind::NoNotes, "Let’s build a 4-bar idea",

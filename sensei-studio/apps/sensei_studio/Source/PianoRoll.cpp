@@ -155,8 +155,10 @@ sensei::core::Track* PianoRoll::activeTrack() noexcept
 sensei::core::MidiClip* PianoRoll::activeClip() noexcept
 {
     auto* track = activeTrack();
-    if (track == nullptr || track->clips.empty())
+    if (track == nullptr || track->clips.empty() || document_ == nullptr)
         return nullptr;
+    if (auto* clip = document_->project().findClip(track->id, document_->selectedClipId()))
+        return clip;
     return &track->clips.front();
 }
 
@@ -167,6 +169,8 @@ const sensei::core::MidiClip* PianoRoll::activeClip() const noexcept
     const auto* track = document_->project().findTrack(document_->selectedTrackId());
     if (track == nullptr || track->type != sensei::core::TrackType::Midi || track->clips.empty())
         return document_->project().primaryClip();
+    if (const auto* clip = document_->project().findClip(track->id, document_->selectedClipId()))
+        return clip;
     return &track->clips.front();
 }
 

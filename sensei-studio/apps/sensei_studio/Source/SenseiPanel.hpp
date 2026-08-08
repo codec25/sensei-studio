@@ -34,4 +34,7 @@ private:
     juce::TextButton laterBtn_ { "Later" };
     juce::TextButton drumsBtn_ { "Add starter drums" };
     juce::TextButton bassBtn_ { "Add root-note bass" };
+    juce::TextButton songBtn_ { "Turn this loop into a song" };
+    juce::TextButton variationBtn_ { "Thin variation drums" };
+    juce::TextButton introBtn_ { "Thin the intro" };
 };

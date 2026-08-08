@@ -180,10 +180,13 @@ TEST_CASE("Drum step maps from loop length and stepCount", "[drums][snapshot]")
     // Re-map with a coarser pattern (16 steps) and verify snapshot beats.
     auto* drums = doc.project().findTrackByRole(TrackRole::Drums);
     REQUIRE(drums != nullptr);
+    REQUIRE_FALSE(drums->drumClips.empty());
+    const Id drumClipId = drums->drumClips.front().id;
     DrumPattern coarse;
     coarse.stepCount = 16;
     coarse.hits = { { 0, DrumLane::Kick, 0.8f }, { 4, DrumLane::Snare, 0.8f } };
-    REQUIRE(doc.execute(std::make_unique<ReplaceDrumPatternCommand>(drums->id, std::move(coarse))));
+    REQUIRE(doc.execute(std::make_unique<ReplaceDrumPatternCommand>(
+        drums->id, drumClipId, std::move(coarse))));
 
     const auto guard = doc.snapshots().beginRead();
     const auto& snap = guard.get();

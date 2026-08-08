@@ -22,6 +22,7 @@ target_sources(sensei_studio
     Source/TrackList.hpp
     Source/ChordHelperPanel.hpp
     Source/DrumGrid.hpp
+    Source/ArrangementView.hpp
 )
 
 target_compile_definitions(sensei_studio
