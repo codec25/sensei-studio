@@ -46,5 +46,6 @@ ctest --test-dir build --output-on-failure
 ### Current milestones
 
 - **A** — native shell, Core transport, SimpleSynth audition.
-- **B** — starter project, piano roll editing, 4-bar loop playback, undo/redo,
-  deterministic Sensei observations (no AI).
+- **B** — piano roll, 4-bar loop playback, undo/redo, safe snapshots.
+- **C** — multi-track guided first loop: chords, drums, root bass, Sensei flow (no AI).
+- **D** — arrangement timeline, song sections, clip ops, turn-loop-into-song flow.

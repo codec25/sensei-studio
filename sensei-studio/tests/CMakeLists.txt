@@ -9,6 +9,10 @@ add_executable(sensei_core_tests
   core/UndoRedoTests.cpp
   core/SenseiObservationTests.cpp
   core/SnapshotPublisherTests.cpp
+  core/MultiTrackTests.cpp
+  core/ChordTests.cpp
+  core/DrumBassLessonTests.cpp
+  core/ArrangementTests.cpp
   engine/MidiEventBufferTests.cpp
 )
 

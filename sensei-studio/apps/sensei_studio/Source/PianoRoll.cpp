@@ -105,7 +105,7 @@ void PianoRoll::paint(juce::Graphics& g)
 
     if (document_ != nullptr)
     {
-        if (const auto* clip = document_->project().primaryClip())
+        if (const auto* clip = activeClip())
         {
             for (const auto& note : clip->notes)
             {
@@ -142,6 +142,38 @@ void PianoRoll::paint(juce::Graphics& g)
 
 void PianoRoll::resized() {}
 
+sensei::core::Track* PianoRoll::activeTrack() noexcept
+{
+    if (document_ == nullptr)
+        return nullptr;
+    if (auto* t = document_->project().findTrack(document_->selectedTrackId()))
+        if (t->type == sensei::core::TrackType::Midi)
+            return t;
+    return document_->project().primaryMidiTrack();
+}
+
+sensei::core::MidiClip* PianoRoll::activeClip() noexcept
+{
+    auto* track = activeTrack();
+    if (track == nullptr || track->clips.empty() || document_ == nullptr)
+        return nullptr;
+    if (auto* clip = document_->project().findClip(track->id, document_->selectedClipId()))
+        return clip;
+    return &track->clips.front();
+}
+
+const sensei::core::MidiClip* PianoRoll::activeClip() const noexcept
+{
+    if (document_ == nullptr)
+        return nullptr;
+    const auto* track = document_->project().findTrack(document_->selectedTrackId());
+    if (track == nullptr || track->type != sensei::core::TrackType::Midi || track->clips.empty())
+        return document_->project().primaryClip();
+    if (const auto* clip = document_->project().findClip(track->id, document_->selectedClipId()))
+        return clip;
+    return &track->clips.front();
+}
+
 int PianoRoll::pitchForY(float y) const noexcept
 {
     const int row = juce::jlimit(0, kNumRows - 1, static_cast<int>(y / kRowH));
@@ -171,7 +203,7 @@ const sensei::core::MidiNote* PianoRoll::hitTestNote(juce::Point<float> pos, boo
     if (document_ == nullptr)
         return nullptr;
 
-    const auto* clip = document_->project().primaryClip();
+    const auto* clip = activeClip();
     if (clip == nullptr)
         return nullptr;
 
@@ -196,8 +228,8 @@ void PianoRoll::mouseDown(const juce::MouseEvent& event)
     if (document_ == nullptr)
         return;
 
-    auto* track = document_->project().primaryMidiTrack();
-    auto* clip = document_->project().primaryClip();
+    auto* track = activeTrack();
+    auto* clip = activeClip();
     if (track == nullptr || clip == nullptr)
         return;
 
@@ -322,8 +354,8 @@ void PianoRoll::commitPreview()
         return;
     }
 
-    auto* track = document_->project().primaryMidiTrack();
-    auto* clip = document_->project().primaryClip();
+    auto* track = activeTrack();
+    auto* clip = activeClip();
     if (track == nullptr || clip == nullptr)
     {
         clearPreview();
@@ -414,8 +446,8 @@ void PianoRoll::deleteSelected()
     if (id == sensei::core::kInvalidId)
         return;
 
-    auto* track = document_->project().primaryMidiTrack();
-    auto* clip = document_->project().primaryClip();
+    auto* track = activeTrack();
+    auto* clip = activeClip();
     if (track == nullptr || clip == nullptr)
         return;
 

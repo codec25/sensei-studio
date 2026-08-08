@@ -19,6 +19,10 @@ target_sources(sensei_studio
     Source/PianoRoll.hpp
     Source/SenseiPanel.cpp
     Source/SenseiPanel.hpp
+    Source/TrackList.hpp
+    Source/ChordHelperPanel.hpp
+    Source/DrumGrid.hpp
+    Source/ArrangementView.hpp
 )
 
 target_compile_definitions(sensei_studio
