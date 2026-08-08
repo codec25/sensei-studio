@@ -34,6 +34,22 @@ private:
         Resize
     };
 
+    // Transient editor preview — never mutates canonical Project notes.
+    struct Preview
+    {
+        bool active = false;
+        DragMode mode = DragMode::None;
+        sensei::core::Id noteId = sensei::core::kInvalidId;
+        double startBeat = 0.0;
+        double lengthBeats = 1.0;
+        int pitch = 60;
+        float velocity = 0.8f;
+        double originStartBeat = 0.0;
+        double originLengthBeats = 1.0;
+        int originPitch = 60;
+        double grabOffsetBeats = 0.0;
+    };
+
     static constexpr int kTopMidi = 72; // C5
     static constexpr int kBottomMidi = 48; // C3
     static constexpr int kNumRows = kTopMidi - kBottomMidi + 1;
@@ -46,18 +62,16 @@ private:
     [[nodiscard]] double beatForX(float x) const noexcept;
     [[nodiscard]] float yForPitch(int pitch) const noexcept;
     [[nodiscard]] float xForBeat(double beat) const noexcept;
-    [[nodiscard]] sensei::core::MidiNote* hitTestNote(juce::Point<float> pos, bool& nearRightEdge);
+    [[nodiscard]] const sensei::core::MidiNote* hitTestNote(juce::Point<float> pos, bool& nearRightEdge) const;
+    void drawNoteRect(juce::Graphics& g, double startBeat, int pitch, double lengthBeats,
+                      float velocity, bool selected) const;
     void deleteSelected();
     void notifyEdited();
+    void clearPreview() noexcept;
+    void commitPreview();
 
     sensei::core::Document* document_ = nullptr;
     double playheadBeats_ = 0.0;
-
-    DragMode dragMode_ = DragMode::None;
-    sensei::core::Id dragNoteId_ = sensei::core::kInvalidId;
-    double dragOriginBeat_ = 0.0;
-    int dragOriginPitch_ = 0;
-    double dragOriginLength_ = 0.0;
-    double dragGrabOffsetBeats_ = 0.0;
+    Preview preview_ {};
     int auditionPitch_ = -1;
 };

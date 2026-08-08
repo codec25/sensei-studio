@@ -31,6 +31,7 @@ PianoRoll::PianoRoll()
 void PianoRoll::setDocument(sensei::core::Document* document)
 {
     document_ = document;
+    clearPreview();
     repaint();
 }
 
@@ -43,6 +44,30 @@ void PianoRoll::setPlayheadBeats(double beats)
     }
 }
 
+void PianoRoll::clearPreview() noexcept
+{
+    preview_ = {};
+}
+
+void PianoRoll::drawNoteRect(juce::Graphics& g,
+                             double startBeat,
+                             int pitch,
+                             double lengthBeats,
+                             float velocity,
+                             bool selected) const
+{
+    const float x = xForBeat(startBeat);
+    const float y = yForPitch(pitch);
+    const float w = juce::jmax(6.0f, static_cast<float>(lengthBeats) * kBeatW);
+
+    g.setColour(selected ? juce::Colour(0xffeaff9a) : juce::Colour(0xffd5ff5c));
+    g.setOpacity(0.45f + velocity * 0.55f);
+    g.fillRoundedRectangle(x, y + 1.0f, w, kRowH - 2.0f, 4.0f);
+    g.setOpacity(1.0f);
+    g.setColour(selected ? juce::Colour(0xff9cf0ff) : juce::Colour(0xff2a303a));
+    g.drawRoundedRectangle(x, y + 1.0f, w, kRowH - 2.0f, 4.0f, selected ? 2.0f : 1.0f);
+}
+
 void PianoRoll::paint(juce::Graphics& g)
 {
     g.fillAll(juce::Colour(0xff11151a));
@@ -51,7 +76,6 @@ void PianoRoll::paint(juce::Graphics& g)
     const double loopBeats = document_ != nullptr ? document_->project().loop().lengthBeats : 16.0;
     const float contentW = kKeyW + static_cast<float>(loopBeats) * kBeatW;
 
-    // Rows + keys
     for (int row = 0; row < kNumRows; ++row)
     {
         const int pitch = kTopMidi - row;
@@ -70,7 +94,6 @@ void PianoRoll::paint(juce::Graphics& g)
         g.drawHorizontalLine(static_cast<int>(y + kRowH), kKeyW, contentW);
     }
 
-    // Vertical grid (1/16)
     const int steps = static_cast<int>(std::lround(loopBeats / sensei::core::kDefaultGridBeats));
     for (int s = 0; s <= steps; ++s)
     {
@@ -80,29 +103,35 @@ void PianoRoll::paint(juce::Graphics& g)
         g.drawVerticalLine(static_cast<int>(x), 0.0f, contentH);
     }
 
-    // Notes
     if (document_ != nullptr)
     {
         if (const auto* clip = document_->project().primaryClip())
         {
             for (const auto& note : clip->notes)
             {
-                const float x = xForBeat(note.startBeat);
-                const float y = yForPitch(note.pitch);
-                const float w = juce::jmax(6.0f, static_cast<float>(note.lengthBeats) * kBeatW);
-                const bool selected = note.id == document_->selectedNoteId();
+                // While moving/resizing, hide the canonical note and show preview instead.
+                if (preview_.active && preview_.noteId == note.id
+                    && (preview_.mode == DragMode::Move || preview_.mode == DragMode::Resize))
+                {
+                    continue;
+                }
 
-                g.setColour(selected ? juce::Colour(0xffeaff9a) : juce::Colour(0xffd5ff5c));
-                g.setOpacity(0.45f + note.velocity * 0.55f);
-                g.fillRoundedRectangle(x, y + 1.0f, w, kRowH - 2.0f, 4.0f);
-                g.setOpacity(1.0f);
-                g.setColour(selected ? juce::Colour(0xff9cf0ff) : juce::Colour(0xff2a303a));
-                g.drawRoundedRectangle(x, y + 1.0f, w, kRowH - 2.0f, 4.0f, selected ? 2.0f : 1.0f);
+                const bool selected = note.id == document_->selectedNoteId();
+                drawNoteRect(g, note.startBeat, note.pitch, note.lengthBeats, note.velocity, selected);
             }
         }
     }
 
-    // Playhead
+    if (preview_.active)
+    {
+        drawNoteRect(g,
+                     preview_.startBeat,
+                     preview_.pitch,
+                     preview_.lengthBeats,
+                     preview_.velocity,
+                     true);
+    }
+
     const float px = xForBeat(playheadBeats_);
     g.setColour(juce::Colour(0xff9cf0ff));
     g.drawLine(px, 0.0f, px, contentH, 2.0f);
@@ -136,17 +165,16 @@ float PianoRoll::xForBeat(double beat) const noexcept
     return kKeyW + static_cast<float>(beat) * kBeatW;
 }
 
-sensei::core::MidiNote* PianoRoll::hitTestNote(juce::Point<float> pos, bool& nearRightEdge)
+const sensei::core::MidiNote* PianoRoll::hitTestNote(juce::Point<float> pos, bool& nearRightEdge) const
 {
     nearRightEdge = false;
     if (document_ == nullptr)
         return nullptr;
 
-    auto* clip = document_->project().primaryClip();
+    const auto* clip = document_->project().primaryClip();
     if (clip == nullptr)
         return nullptr;
 
-    // Topmost (last drawn) wins — iterate reverse.
     for (auto it = clip->notes.rbegin(); it != clip->notes.rend(); ++it)
     {
         const float x = xForBeat(it->startBeat);
@@ -176,26 +204,32 @@ void PianoRoll::mouseDown(const juce::MouseEvent& event)
     if (event.mods.isPopupMenu())
     {
         bool edge = false;
-        if (auto* note = hitTestNote(event.position, edge))
+        if (const auto* note = hitTestNote(event.position, edge))
         {
             document_->setSelectedNoteId(note->id);
             document_->execute(std::make_unique<sensei::core::DeleteNoteCommand>(track->id, clip->id, note->id));
             document_->setSelectedNoteId(sensei::core::kInvalidId);
+            clearPreview();
             notifyEdited();
         }
         return;
     }
 
     bool edge = false;
-    if (auto* note = hitTestNote(event.position, edge))
+    if (const auto* note = hitTestNote(event.position, edge))
     {
         document_->setSelectedNoteId(note->id);
-        dragNoteId_ = note->id;
-        dragOriginBeat_ = note->startBeat;
-        dragOriginPitch_ = note->pitch;
-        dragOriginLength_ = note->lengthBeats;
-        dragGrabOffsetBeats_ = beatForX(event.position.x) - note->startBeat;
-        dragMode_ = edge ? DragMode::Resize : DragMode::Move;
+        preview_.active = true;
+        preview_.mode = edge ? DragMode::Resize : DragMode::Move;
+        preview_.noteId = note->id;
+        preview_.startBeat = note->startBeat;
+        preview_.lengthBeats = note->lengthBeats;
+        preview_.pitch = note->pitch;
+        preview_.velocity = note->velocity;
+        preview_.originStartBeat = note->startBeat;
+        preview_.originLengthBeats = note->lengthBeats;
+        preview_.originPitch = note->pitch;
+        preview_.grabOffsetBeats = beatForX(event.position.x) - note->startBeat;
 
         if (onAuditionNoteOn)
         {
@@ -217,63 +251,55 @@ void PianoRoll::mouseDown(const juce::MouseEvent& event)
         return;
     }
 
+    // Create: preview only until mouseUp — no canonical mutation yet.
     const double start = sensei::core::snapBeat(beatForX(event.position.x));
     const int pitch = pitchForY(event.position.y);
-    auto cmd = std::make_unique<sensei::core::AddNoteCommand>(track->id, clip->id, pitch, start, 1.0, 0.8f);
-    auto* raw = cmd.get();
-    if (document_->execute(std::move(cmd)))
+    preview_.active = true;
+    preview_.mode = DragMode::Create;
+    preview_.noteId = sensei::core::kInvalidId;
+    preview_.startBeat = start;
+    preview_.lengthBeats = 1.0;
+    preview_.pitch = pitch;
+    preview_.velocity = 0.8f;
+    preview_.originStartBeat = start;
+    preview_.originLengthBeats = 1.0;
+    preview_.originPitch = pitch;
+    preview_.grabOffsetBeats = 0.0;
+
+    if (onAuditionNoteOn)
     {
-        document_->setSelectedNoteId(raw->createdNoteId());
-        dragMode_ = DragMode::Create;
-        dragNoteId_ = raw->createdNoteId();
-        dragOriginBeat_ = start;
-        dragOriginPitch_ = pitch;
-        dragOriginLength_ = 1.0;
-        if (onAuditionNoteOn)
-        {
-            auditionPitch_ = pitch;
-            onAuditionNoteOn(pitch, 0.8f);
-        }
-        notifyEdited();
+        auditionPitch_ = pitch;
+        onAuditionNoteOn(pitch, 0.8f);
     }
+    repaint();
 }
 
 void PianoRoll::mouseDrag(const juce::MouseEvent& event)
 {
-    if (document_ == nullptr || dragMode_ == DragMode::None || dragNoteId_ == sensei::core::kInvalidId)
+    if (! preview_.active)
         return;
 
-    auto* track = document_->project().primaryMidiTrack();
-    auto* clip = document_->project().primaryClip();
-    auto* note = document_->project().findNote(track->id, clip->id, dragNoteId_);
-    if (note == nullptr)
-        return;
-
-    if (dragMode_ == DragMode::Move || dragMode_ == DragMode::Create)
+    if (preview_.mode == DragMode::Move || preview_.mode == DragMode::Create)
     {
-        const double newStart = sensei::core::snapBeat(beatForX(event.position.x) - dragGrabOffsetBeats_);
+        const double newStart = sensei::core::snapBeat(beatForX(event.position.x) - preview_.grabOffsetBeats);
         const int newPitch = pitchForY(event.position.y);
-        // Live preview mutate then publish — finalized as command on mouseUp for move.
-        // For Create, note already added; preview move/pitch directly then commit Move on up if changed.
-        note->startBeat = sensei::core::clampNonNegativeBeat(newStart);
-        note->pitch = sensei::core::clampMidiNote(newPitch);
-        document_->publishSnapshot();
-        if (auditionPitch_ != note->pitch)
+        preview_.startBeat = sensei::core::clampNonNegativeBeat(newStart);
+        preview_.pitch = sensei::core::clampMidiNote(newPitch);
+
+        if (auditionPitch_ != preview_.pitch)
         {
             if (onAuditionNoteOff && auditionPitch_ >= 0)
                 onAuditionNoteOff(auditionPitch_);
-            auditionPitch_ = note->pitch;
+            auditionPitch_ = preview_.pitch;
             if (onAuditionNoteOn)
-                onAuditionNoteOn(note->pitch, note->velocity);
+                onAuditionNoteOn(preview_.pitch, preview_.velocity);
         }
         repaint();
     }
-    else if (dragMode_ == DragMode::Resize)
+    else if (preview_.mode == DragMode::Resize)
     {
         const double endBeat = sensei::core::snapBeat(beatForX(event.position.x));
-        const double length = sensei::core::snapLength(endBeat - note->startBeat);
-        note->lengthBeats = length;
-        document_->publishSnapshot();
+        preview_.lengthBeats = sensei::core::snapLength(endBeat - preview_.startBeat);
         repaint();
     }
 }
@@ -284,52 +310,59 @@ void PianoRoll::mouseUp(const juce::MouseEvent&)
         onAuditionNoteOff(auditionPitch_);
     auditionPitch_ = -1;
 
-    if (document_ == nullptr)
+    commitPreview();
+}
+
+void PianoRoll::commitPreview()
+{
+    if (document_ == nullptr || ! preview_.active)
     {
-        dragMode_ = DragMode::None;
+        clearPreview();
+        repaint();
         return;
     }
 
     auto* track = document_->project().primaryMidiTrack();
     auto* clip = document_->project().primaryClip();
-    auto* note = (track && clip) ? document_->project().findNote(track->id, clip->id, dragNoteId_) : nullptr;
-
-    if (note != nullptr && (dragMode_ == DragMode::Move || dragMode_ == DragMode::Create))
+    if (track == nullptr || clip == nullptr)
     {
-        const double finalStart = note->startBeat;
-        const int finalPitch = note->pitch;
-        // Restore origin then apply command so undo works.
-        note->startBeat = dragOriginBeat_;
-        note->pitch = dragOriginPitch_;
-        if (std::abs(finalStart - dragOriginBeat_) > 1.0e-9 || finalPitch != dragOriginPitch_)
+        clearPreview();
+        repaint();
+        return;
+    }
+
+    if (preview_.mode == DragMode::Create)
+    {
+        auto cmd = std::make_unique<sensei::core::AddNoteCommand>(
+            track->id, clip->id, preview_.pitch, preview_.startBeat, preview_.lengthBeats, preview_.velocity);
+        auto* raw = cmd.get();
+        if (document_->execute(std::move(cmd)))
+        {
+            document_->setSelectedNoteId(raw->createdNoteId());
+            notifyEdited();
+        }
+    }
+    else if (preview_.mode == DragMode::Move)
+    {
+        if (std::abs(preview_.startBeat - preview_.originStartBeat) > 1.0e-9
+            || preview_.pitch != preview_.originPitch)
         {
             document_->execute(std::make_unique<sensei::core::MoveNoteCommand>(
-                track->id, clip->id, dragNoteId_, finalStart, finalPitch));
+                track->id, clip->id, preview_.noteId, preview_.startBeat, preview_.pitch));
             notifyEdited();
-        }
-        else
-        {
-            document_->publishSnapshot();
         }
     }
-    else if (note != nullptr && dragMode_ == DragMode::Resize)
+    else if (preview_.mode == DragMode::Resize)
     {
-        const double finalLen = note->lengthBeats;
-        note->lengthBeats = dragOriginLength_;
-        if (std::abs(finalLen - dragOriginLength_) > 1.0e-9)
+        if (std::abs(preview_.lengthBeats - preview_.originLengthBeats) > 1.0e-9)
         {
             document_->execute(std::make_unique<sensei::core::ResizeNoteCommand>(
-                track->id, clip->id, dragNoteId_, finalLen));
+                track->id, clip->id, preview_.noteId, preview_.lengthBeats));
             notifyEdited();
-        }
-        else
-        {
-            document_->publishSnapshot();
         }
     }
 
-    dragMode_ = DragMode::None;
-    dragNoteId_ = sensei::core::kInvalidId;
+    clearPreview();
     repaint();
 }
 
@@ -349,6 +382,7 @@ bool PianoRoll::keyPressed(const juce::KeyPress& key)
             if (document_ == nullptr)
                 return true;
 
+            clearPreview();
             if (mods.isShiftDown())
                 document_->redo();
             else
@@ -360,6 +394,7 @@ bool PianoRoll::keyPressed(const juce::KeyPress& key)
         {
             if (document_ != nullptr)
             {
+                clearPreview();
                 document_->redo();
                 notifyEdited();
             }
@@ -374,6 +409,7 @@ void PianoRoll::deleteSelected()
     if (document_ == nullptr)
         return;
 
+    clearPreview();
     const auto id = document_->selectedNoteId();
     if (id == sensei::core::kInvalidId)
         return;

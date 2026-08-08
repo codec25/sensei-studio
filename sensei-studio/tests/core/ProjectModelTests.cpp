@@ -51,7 +51,8 @@ TEST_CASE("Document snapshot contains notes", "[snapshot]")
     auto add = std::make_unique<AddNoteCommand>(track->id, clip->id, 60, 0.0, 1.0, 0.8f);
     REQUIRE(doc.execute(std::move(add)));
 
-    const auto& snap = doc.snapshots().read();
+    const auto guard = doc.snapshots().beginRead();
+    const auto& snap = guard.get();
     REQUIRE(snap.noteCount == 1);
     REQUIRE(snap.notes[0].pitch == 60);
     REQUIRE(snap.loopLengthBeats == Catch::Approx(16.0));

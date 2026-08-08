@@ -80,7 +80,7 @@ void AudioEngine::audioDeviceIOCallbackWithContext(const float* const*,
                                                    int numSamples,
                                                    const juce::AudioIODeviceCallbackContext&)
 {
-    // Realtime callback: clear, schedule MIDI from snapshot, render synth.
+    // Realtime callback: clear, hold snapshot ReadGuard, schedule+render sample-accurately.
     // No blocking, file/network I/O, AI, UI, or heap allocation here.
     for (int ch = 0; ch < numOutputChannels; ++ch)
     {
@@ -88,17 +88,25 @@ void AudioEngine::audioDeviceIOCallbackWithContext(const float* const*,
             juce::FloatVectorOperations::clear(outputChannelData[ch], numSamples);
     }
 
+    float* left = numOutputChannels > 0 ? outputChannelData[0] : nullptr;
+    float* right = numOutputChannels > 1 ? outputChannelData[1] : left;
+    if (left == nullptr)
+        return;
+
     auto* transport = transport_.load(std::memory_order_acquire);
     const auto* snapshots = snapshots_.load(std::memory_order_acquire);
     const double sampleRate = sampleRate_.load(std::memory_order_relaxed);
 
     if (transport != nullptr && snapshots != nullptr)
-        scheduler_.process(snapshots->read(), *transport, synth_, numSamples, sampleRate);
+    {
+        // Keep the guard for the entire schedule+render so the writer cannot
+        // mutate the slot we are reading.
+        auto guard = snapshots->beginRead();
+        scheduler_.process(guard.get(), *transport, synth_, left, right, numSamples, sampleRate);
+        return;
+    }
 
-    float* left = numOutputChannels > 0 ? outputChannelData[0] : nullptr;
-    float* right = numOutputChannels > 1 ? outputChannelData[1] : left;
-    if (left != nullptr)
-        synth_.process(left, right, numSamples);
+    synth_.process(left, right, numSamples);
 }
 
 } // namespace sensei::engine

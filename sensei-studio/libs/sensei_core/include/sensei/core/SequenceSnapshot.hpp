@@ -7,6 +7,7 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <mutex>
 
 namespace sensei::core {
 
@@ -20,14 +21,6 @@ struct ScheduledNote
     double endBeat = 0.0;
 };
 
-// Realtime-safe musical snapshot.
-//
-// Publication strategy (triple slot, no shared_ptr):
-// - Three fixed SequenceSnapshot slots live for the process lifetime.
-// - Message thread writes into a slot that is not currently published.
-// - Message thread then atomically publishes that slot index.
-// - Audio thread only loads the published index and reads that slot.
-// - Nothing is allocated or destroyed on the audio thread.
 struct SequenceSnapshot
 {
     static constexpr std::size_t kMaxNotes = 256;
@@ -41,43 +34,94 @@ struct SequenceSnapshot
     std::array<ScheduledNote, kMaxNotes> notes {};
 };
 
+// Realtime-safe snapshot publication (single message-thread writer, single audio reader).
+//
+// DESIGN:
+// - Message thread writes into private `back_` (never read by audio).
+// - `publish()` copies `back_` → `front_` under a mutex (message thread only blocks here).
+// - Audio thread `beginRead()` uses `try_lock()`:
+//     - If acquired: copies `front_` → `audioLocal_` (fixed-size POD copy, no heap), unlocks.
+//     - If busy: keeps the previous `audioLocal_` (last known-good snapshot).
+// - Audio then reads only `audioLocal_` for the rest of the callback.
+//
+// INVARIANT:
+// - Audio never blocks (try_lock only), never allocates/deallocates heap.
+// - Audio never reads memory the message thread is mutating (`back_` / `front_` under lock).
+// - `audioLocal_` is written only by the audio thread; ownership/lifetime is explicit.
+// - A successful try_lock copy is a coherent snapshot; a failed try_lock reuses the
+//   previous coherent local copy (at most one publish late — acceptable for Milestone B).
 class SnapshotPublisher
 {
 public:
-    SnapshotPublisher() = default;
-
-    // Message thread: fill a writable slot, then publish().
-    [[nodiscard]] SequenceSnapshot& beginWrite() noexcept
+    class ReadGuard
     {
-        const int published = publishedIndex_.load(std::memory_order_acquire);
-        writeIndex_ = (published + 1) % kSlotCount;
-        if (writeIndex_ == published)
-            writeIndex_ = (writeIndex_ + 1) % kSlotCount;
-        return slots_[static_cast<std::size_t>(writeIndex_)];
+    public:
+        ReadGuard() = default;
+        explicit ReadGuard(const SequenceSnapshot* snapshot) noexcept : snapshot_(snapshot) {}
+
+        [[nodiscard]] const SequenceSnapshot& get() const noexcept { return *snapshot_; }
+        [[nodiscard]] bool valid() const noexcept { return snapshot_ != nullptr; }
+
+    private:
+        const SequenceSnapshot* snapshot_ = nullptr;
+    };
+
+    SnapshotPublisher()
+    {
+        audioLocal_ = front_;
     }
 
-    void publish() noexcept
+    // Message thread only.
+    [[nodiscard]] SequenceSnapshot& beginWrite() noexcept { return back_; }
+
+    // Message thread only.
+    void publish()
     {
-        publishedIndex_.store(writeIndex_, std::memory_order_release);
+        std::lock_guard<std::mutex> lock(mutex_);
+        front_ = back_;
+        publishedGeneration_.store(front_.generation, std::memory_order_release);
     }
 
-    // Audio thread / any reader: never frees memory.
-    [[nodiscard]] const SequenceSnapshot& read() const noexcept
+    // Audio thread only. Keep the returned guard for the callback duration.
+    [[nodiscard]] ReadGuard beginRead() const
     {
-        const int index = publishedIndex_.load(std::memory_order_acquire);
-        return slots_[static_cast<std::size_t>(index)];
+        if (mutex_.try_lock())
+        {
+            audioLocal_ = front_;
+            mutex_.unlock();
+            ++successfulCopies_;
+        }
+        else
+        {
+            ++skippedCopies_;
+        }
+
+        return ReadGuard { &audioLocal_ };
     }
 
     [[nodiscard]] std::uint64_t publishedGeneration() const noexcept
     {
-        return read().generation;
+        return publishedGeneration_.load(std::memory_order_acquire);
+    }
+
+    // Test helpers
+    [[nodiscard]] std::uint64_t successfulCopies() const noexcept { return successfulCopies_; }
+    [[nodiscard]] std::uint64_t skippedCopies() const noexcept { return skippedCopies_; }
+
+    [[nodiscard]] const SequenceSnapshot& debugReadPublished() const
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return front_;
     }
 
 private:
-    static constexpr int kSlotCount = 3;
-    std::array<SequenceSnapshot, kSlotCount> slots_ {};
-    std::atomic<int> publishedIndex_ { 0 };
-    int writeIndex_ { 1 };
+    SequenceSnapshot back_ {};
+    SequenceSnapshot front_ {};
+    mutable SequenceSnapshot audioLocal_ {};
+    mutable std::mutex mutex_;
+    std::atomic<std::uint64_t> publishedGeneration_ { 0 };
+    mutable std::uint64_t successfulCopies_ { 0 };
+    mutable std::uint64_t skippedCopies_ { 0 };
 };
 
 } // namespace sensei::core
