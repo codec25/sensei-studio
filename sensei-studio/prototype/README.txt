@@ -1,10 +1,12 @@
-SENSEI STUDIO 0.3 — FUNCTIONAL BROWSER PROTOTYPE
+SENSEI STUDIO 0.3 — FUNCTIONAL BROWSER PROTOTYPE (UX REFERENCE)
+
+This folder is the preserved browser prototype. It is not the native app.
+Native Sensei Studio lives under apps/sensei_studio (C++20/JUCE).
 
 HOW TO OPEN
-1. Extract the ZIP.
-2. Double-click index.html.
-3. On the welcome screen, click Start creating.
-4. Your browser will enable audio after that user click.
+1. Open prototype/index.html in a desktop browser.
+2. On the welcome screen, click Start creating.
+3. Your browser will enable audio after that user click.
 
 WHAT WORKS
 - Real Web Audio synth sound

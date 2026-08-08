@@ -1,0 +1,108 @@
+#include "sensei/engine/AudioEngine.hpp"
+
+namespace sensei::engine {
+
+AudioEngine::AudioEngine() = default;
+
+AudioEngine::~AudioEngine()
+{
+    shutdown();
+}
+
+void AudioEngine::setTransport(sensei::core::Transport* transport) noexcept
+{
+    transport_.store(transport, std::memory_order_release);
+}
+
+bool AudioEngine::initialise()
+{
+    if (initialised_.load())
+        return true;
+
+    auto result = deviceManager_.initialiseWithDefaultDevices(0, 2);
+    if (result.isNotEmpty())
+        return false;
+
+    deviceManager_.addAudioCallback(this);
+    initialised_.store(true);
+    return true;
+}
+
+void AudioEngine::shutdown()
+{
+    if (! initialised_.exchange(false))
+        return;
+
+    deviceManager_.removeAudioCallback(this);
+    deviceManager_.closeAudioDevice();
+    synth_.allNotesOff();
+}
+
+void AudioEngine::noteOn(int midiNote, float velocity) noexcept
+{
+    synth_.noteOn(midiNote, velocity);
+}
+
+void AudioEngine::noteOff(int midiNote) noexcept
+{
+    synth_.noteOff(midiNote);
+}
+
+void AudioEngine::allNotesOff() noexcept
+{
+    synth_.allNotesOff();
+}
+
+void AudioEngine::audioDeviceAboutToStart(juce::AudioIODevice* device)
+{
+    const double sr = device != nullptr ? device->getCurrentSampleRate() : 44100.0;
+    sampleRate_.store(sr > 0.0 ? sr : 44100.0, std::memory_order_relaxed);
+    synth_.prepare(sampleRate_.load(std::memory_order_relaxed));
+}
+
+void AudioEngine::audioDeviceStopped()
+{
+    synth_.allNotesOff();
+    wasPlaying_.store(false);
+}
+
+void AudioEngine::audioDeviceIOCallbackWithContext(const float* const*,
+                                                   int,
+                                                   float* const* outputChannelData,
+                                                   int numOutputChannels,
+                                                   int numSamples,
+                                                   const juce::AudioIODeviceCallbackContext&)
+{
+    // Realtime callback: clear buffers, render synth, advance transport.
+    // No blocking, file/network I/O, AI, UI, or heap allocation here.
+    for (int ch = 0; ch < numOutputChannels; ++ch)
+    {
+        if (outputChannelData[ch] != nullptr)
+            juce::FloatVectorOperations::clear(outputChannelData[ch], numSamples);
+    }
+
+    float* left = numOutputChannels > 0 ? outputChannelData[0] : nullptr;
+    float* right = numOutputChannels > 1 ? outputChannelData[1] : left;
+
+    if (left != nullptr)
+        synth_.process(left, right, numSamples);
+
+    auto* transport = transport_.load(std::memory_order_acquire);
+    const double sampleRate = sampleRate_.load(std::memory_order_relaxed);
+    if (transport == nullptr || sampleRate <= 0.0 || numSamples <= 0)
+        return;
+
+    const bool playing = transport->isPlaying();
+    const bool wasPlaying = wasPlaying_.exchange(playing);
+
+    if (! playing)
+    {
+        if (wasPlaying)
+            synth_.allNotesOff();
+        return;
+    }
+
+    transport->advance(static_cast<double>(numSamples) / sampleRate);
+}
+
+} // namespace sensei::engine
