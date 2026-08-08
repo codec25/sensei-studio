@@ -11,7 +11,7 @@ AudioEngine::~AudioEngine()
 
 void AudioEngine::setTransport(sensei::core::Transport* transport) noexcept
 {
-    transport_ = transport;
+    transport_.store(transport, std::memory_order_release);
 }
 
 bool AudioEngine::initialise()
@@ -55,8 +55,9 @@ void AudioEngine::allNotesOff() noexcept
 
 void AudioEngine::audioDeviceAboutToStart(juce::AudioIODevice* device)
 {
-    sampleRate_ = device != nullptr ? device->getCurrentSampleRate() : 44100.0;
-    synth_.prepare(sampleRate_);
+    const double sr = device != nullptr ? device->getCurrentSampleRate() : 44100.0;
+    sampleRate_.store(sr > 0.0 ? sr : 44100.0, std::memory_order_relaxed);
+    synth_.prepare(sampleRate_.load(std::memory_order_relaxed));
 }
 
 void AudioEngine::audioDeviceStopped()
@@ -86,8 +87,9 @@ void AudioEngine::audioDeviceIOCallbackWithContext(const float* const*,
     if (left != nullptr)
         synth_.process(left, right, numSamples);
 
-    auto* transport = transport_;
-    if (transport == nullptr || sampleRate_ <= 0.0 || numSamples <= 0)
+    auto* transport = transport_.load(std::memory_order_acquire);
+    const double sampleRate = sampleRate_.load(std::memory_order_relaxed);
+    if (transport == nullptr || sampleRate <= 0.0 || numSamples <= 0)
         return;
 
     const bool playing = transport->isPlaying();
@@ -100,7 +102,7 @@ void AudioEngine::audioDeviceIOCallbackWithContext(const float* const*,
         return;
     }
 
-    transport->advance(static_cast<double>(numSamples) / sampleRate_);
+    transport->advance(static_cast<double>(numSamples) / sampleRate);
 }
 
 } // namespace sensei::engine

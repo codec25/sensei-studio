@@ -6,7 +6,7 @@ MainComponent::MainComponent()
     setOpaque(true);
 
     brandLabel_.setText("Sensei Studio", juce::dontSendNotification);
-    brandLabel_.setFont(juce::FontOptions(28.0f, juce::Font::bold));
+    brandLabel_.setFont(juce::FontOptions(28.0f).withStyle("Bold"));
     brandLabel_.setColour(juce::Label::textColourId, juce::Colour(0xfff4f5f7));
 
     subtitleLabel_.setText("Milestone A — native heartbeat", juce::dontSendNotification);
@@ -67,7 +67,7 @@ void MainComponent::paint(juce::Graphics& g)
     g.setColour(juce::Colour(0xffd5ff5c));
     g.fillRoundedRectangle(16.0f, 18.0f, 36.0f, 36.0f, 10.0f);
     g.setColour(juce::Colours::black);
-    g.setFont(juce::FontOptions(20.0f, juce::Font::bold));
+    g.setFont(juce::FontOptions(20.0f).withStyle("Bold"));
     g.drawText("S", juce::Rectangle<int>(16, 18, 36, 36), juce::Justification::centred);
 }
 

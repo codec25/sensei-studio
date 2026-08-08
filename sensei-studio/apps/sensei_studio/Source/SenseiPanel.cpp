@@ -3,7 +3,7 @@
 SenseiPanel::SenseiPanel()
 {
     title_.setText("Sensei", juce::dontSendNotification);
-    title_.setFont(juce::FontOptions(18.0f, juce::Font::bold));
+    title_.setFont(juce::FontOptions(18.0f).withStyle("Bold"));
     title_.setColour(juce::Label::textColourId, juce::Colour(0xfff4f5f7));
 
     body_.setText("Producer mentor placeholder.\n\n"

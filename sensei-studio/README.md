@@ -20,16 +20,27 @@ Open `prototype/index.html` in a desktop browser, then click **Start creating**.
 Requirements: CMake ≥ 3.24, a C++20 compiler, and platform audio/GUI libs.
 JUCE **8.0.6** and Catch2 **v3.7.1** are fetched at configure time.
 
+Run these commands from the `sensei-studio/` directory (the folder that contains
+this README and the root `CMakeLists.txt`).
+
+### Windows (Visual Studio 2022)
+
+```bat
+cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+cmake --build build --config Release
+ctest --test-dir build -C Release --output-on-failure
+```
+
+App binary (typical path):
+
+`build\apps\sensei_studio\sensei_studio_artefacts\Release\Sensei Studio.exe`
+
+### macOS / Linux
+
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
 ctest --test-dir build --output-on-failure
-```
-
-Run the app from the build tree (path varies by generator/OS), for example:
-
-```bash
-./build/apps/sensei_studio/sensei_studio_artefacts/Release/Sensei\ Studio
 ```
 
 Milestone A provides: native shell, Core-owned transport (Play/Stop/BPM),

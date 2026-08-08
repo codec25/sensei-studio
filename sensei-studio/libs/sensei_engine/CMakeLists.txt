@@ -25,7 +25,6 @@ target_compile_definitions(sensei_engine
   PUBLIC
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
-    JUCE_DISPLAY_SPLASH_SCREEN=0
 )
 
 # Engine may use JUCE audio modules only. It must not link GUI or teaching code.

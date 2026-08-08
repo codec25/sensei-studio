@@ -45,11 +45,11 @@ public:
 
 private:
     juce::AudioDeviceManager deviceManager_;
-    sensei::core::Transport* transport_ = nullptr;
+    std::atomic<sensei::core::Transport*> transport_ { nullptr };
     SimpleSynth synth_;
     std::atomic<bool> initialised_ { false };
     std::atomic<bool> wasPlaying_ { false };
-    double sampleRate_ = 44100.0;
+    std::atomic<double> sampleRate_ { 44100.0 };
 };
 
 } // namespace sensei::engine
