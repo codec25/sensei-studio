@@ -342,9 +342,10 @@ private:
         {
             case TrackRole::Bass: return SoundProgram::Bass;
             case TrackRole::Melody: return SoundProgram::Melody;
-            case TrackRole::Chords:
-            default: return SoundProgram::Chords;
+            case TrackRole::Drums:
+            case TrackRole::Chords: return SoundProgram::Chords;
         }
+        return SoundProgram::Chords;
     }
 
     static DrumProgram drumProgramForLane(DrumLane lane) noexcept

@@ -126,7 +126,7 @@ inline Observation observationFromLesson(const LessonState& lesson, const Projec
             case LearningEventKind::ChordProgressionCreated: o.kind = ObservationKind::ChordProgressionCreated; break;
             case LearningEventKind::DrumPatternCreated: o.kind = ObservationKind::DrumPatternCreated; break;
             case LearningEventKind::RootBassAdded: o.kind = ObservationKind::RootBassAdded; break;
-            default: o.kind = ObservationKind::LoopHasMaterial; break;
+            case LearningEventKind::UserModifiedGenerated: o.kind = ObservationKind::UserModifiedGenerated; break;
         }
         return o;
     }

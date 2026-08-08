@@ -15,6 +15,7 @@ enum class ObservationKind
     ChordProgressionCreated,
     DrumPatternCreated,
     RootBassAdded,
+    UserModifiedGenerated,
     FirstCompleteLoop
 };
 
