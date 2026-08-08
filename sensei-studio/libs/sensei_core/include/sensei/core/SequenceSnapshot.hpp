@@ -11,6 +11,20 @@
 
 namespace sensei::core {
 
+enum class SoundProgram : std::uint8_t
+{
+    Chords = 0,
+    Bass = 1,
+    Melody = 2
+};
+
+enum class DrumProgram : std::uint8_t
+{
+    Kick = 0,
+    Snare = 1,
+    ClosedHat = 2
+};
+
 // POD note for audio-thread consumption. Fixed-capacity; no heap on audio thread.
 struct ScheduledNote
 {
@@ -19,11 +33,20 @@ struct ScheduledNote
     float velocity = 0.0f;
     double startBeat = 0.0;
     double endBeat = 0.0;
+    SoundProgram program = SoundProgram::Chords;
+};
+
+struct ScheduledDrumHit
+{
+    double beat = 0.0;
+    DrumProgram program = DrumProgram::Kick;
+    float velocity = 0.8f;
 };
 
 struct SequenceSnapshot
 {
-    static constexpr std::size_t kMaxNotes = 256;
+    static constexpr std::size_t kMaxNotes = 512;
+    static constexpr std::size_t kMaxDrumHits = 256;
 
     std::uint64_t generation = 0;
     double bpm = kDefaultBpm;
@@ -31,7 +54,9 @@ struct SequenceSnapshot
     double loopLengthBeats = kDefaultLoopBeats;
     bool loopEnabled = true;
     std::uint32_t noteCount = 0;
+    std::uint32_t drumHitCount = 0;
     std::array<ScheduledNote, kMaxNotes> notes {};
+    std::array<ScheduledDrumHit, kMaxDrumHits> drumHits {};
 };
 
 // Realtime-safe snapshot publication (single message-thread writer, single audio reader).

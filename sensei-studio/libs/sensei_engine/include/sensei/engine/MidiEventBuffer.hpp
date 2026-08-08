@@ -9,15 +9,16 @@ namespace sensei::engine {
 
 struct MidiEvent
 {
-    int sampleOffset = 0; // within the audio block; note-off may equal range end
+    int sampleOffset = 0;
     bool isNoteOn = false;
+    bool isDrum = false;
     sensei::core::Id id = sensei::core::kInvalidId;
     int pitch = 0;
     float velocity = 0.0f;
+    sensei::core::SoundProgram program = sensei::core::SoundProgram::Chords;
+    sensei::core::DrumProgram drum = sensei::core::DrumProgram::Kick;
 };
 
-// Maps a beat inside [rangeStartBeat, rangeStartBeat + rangeBeats) to a sample
-// offset in [baseSampleOffset, baseSampleOffset + rangeSampleCount].
 inline int beatToSampleOffset(double beat,
                               double rangeStartBeat,
                               double rangeBeats,
@@ -53,7 +54,7 @@ inline void insertionSortEvents(MidiEvent* events, int count) noexcept
         {
             const bool outOfOrder = events[j].sampleOffset > key.sampleOffset
                                     || (events[j].sampleOffset == key.sampleOffset
-                                        && events[j].isNoteOn && ! key.isNoteOn);
+                                        && events[j].isNoteOn && ! key.isNoteOn && ! key.isDrum);
             if (! outOfOrder)
                 break;
             events[j + 1] = events[j];
@@ -63,9 +64,6 @@ inline void insertionSortEvents(MidiEvent* events, int count) noexcept
     }
 }
 
-// Collect note-on/off for beat range [fromBeat, toBeat) into sample offsets
-// [baseSampleOffset, baseSampleOffset + rangeSampleCount].
-// No heap allocation. Returns event count.
 inline int collectEventsForBeatRange(const sensei::core::SequenceSnapshot& snapshot,
                                      double fromBeat,
                                      double toBeat,
@@ -88,12 +86,13 @@ inline int collectEventsForBeatRange(const sensei::core::SequenceSnapshot& snaps
         {
             if (count >= maxEvents)
                 break;
-
             MidiEvent ev;
             ev.isNoteOn = true;
+            ev.isDrum = false;
             ev.id = note.id;
             ev.pitch = note.pitch;
             ev.velocity = note.velocity;
+            ev.program = note.program;
             ev.sampleOffset = beatToSampleOffset(
                 note.startBeat, fromBeat, rangeBeats, baseSampleOffset, rangeSampleCount);
             if (ev.sampleOffset >= baseSampleOffset + rangeSampleCount)
@@ -107,14 +106,34 @@ inline int collectEventsForBeatRange(const sensei::core::SequenceSnapshot& snaps
         {
             if (count >= maxEvents)
                 break;
-
             MidiEvent ev;
             ev.isNoteOn = false;
+            ev.isDrum = false;
             ev.id = note.id;
             ev.pitch = note.pitch;
-            ev.velocity = 0.0f;
+            ev.program = note.program;
             ev.sampleOffset = beatToSampleOffset(
                 note.endBeat, fromBeat, rangeBeats, baseSampleOffset, rangeSampleCount);
+            out[count++] = ev;
+        }
+    }
+
+    for (std::uint32_t i = 0; i < snapshot.drumHitCount; ++i)
+    {
+        const auto& hit = snapshot.drumHits[i];
+        if (hit.beat >= fromBeat && hit.beat < toBeat)
+        {
+            if (count >= maxEvents)
+                break;
+            MidiEvent ev;
+            ev.isNoteOn = true;
+            ev.isDrum = true;
+            ev.drum = hit.program;
+            ev.velocity = hit.velocity;
+            ev.sampleOffset = beatToSampleOffset(
+                hit.beat, fromBeat, rangeBeats, baseSampleOffset, rangeSampleCount);
+            if (ev.sampleOffset >= baseSampleOffset + rangeSampleCount)
+                ev.sampleOffset = baseSampleOffset + rangeSampleCount - 1;
             out[count++] = ev;
         }
     }

@@ -11,7 +11,11 @@ enum class ObservationKind
     NotesOutsideLoop,
     ChordDetected,
     LowPitchVariety,
-    LoopHasMaterial
+    LoopHasMaterial,
+    ChordProgressionCreated,
+    DrumPatternCreated,
+    RootBassAdded,
+    FirstCompleteLoop
 };
 
 struct Observation
@@ -19,7 +23,7 @@ struct Observation
     ObservationKind kind = ObservationKind::NoNotes;
     std::string title;
     std::string fact;
-    std::string advice; // optional soft suggestion; may be empty
+    std::string advice;
 };
 
 } // namespace sensei::core

@@ -1,6 +1,26 @@
 #include "sensei/core/Project.hpp"
 
 namespace sensei::core {
+namespace {
+
+Track makeMidiTrack(Project& project, const char* name, TrackRole role)
+{
+    Track track;
+    track.id = project.generateId();
+    track.name = name;
+    track.type = TrackType::Midi;
+    track.role = role;
+
+    MidiClip clip;
+    clip.id = project.generateId();
+    clip.name = "Loop";
+    clip.startBeat = 0.0;
+    clip.lengthBeats = kDefaultLoopBeats;
+    track.clips.push_back(std::move(clip));
+    return track;
+}
+
+} // namespace
 
 Project Project::createStarter(std::string name)
 {
@@ -8,20 +28,23 @@ Project Project::createStarter(std::string name)
     project.id_ = project.generateId();
     project.name_ = std::move(name);
     project.loop_ = LoopRegion { 0.0, kDefaultLoopBeats, true };
+    project.harmony_ = {};
+    project.harmony_.rootPitchClass = 0;
+    project.harmony_.mode = ScaleMode::Major;
 
-    Track track;
-    track.id = project.generateId();
-    track.name = "Sensei Synth";
-    track.type = TrackType::Midi;
+    project.tracks_.push_back(makeMidiTrack(project, "Chords", TrackRole::Chords));
+    project.tracks_.push_back(makeMidiTrack(project, "Bass", TrackRole::Bass));
 
-    MidiClip clip;
-    clip.id = project.generateId();
-    clip.name = "Idea";
-    clip.startBeat = 0.0;
-    clip.lengthBeats = kDefaultLoopBeats;
-    track.clips.push_back(std::move(clip));
+    Track drums;
+    drums.id = project.generateId();
+    drums.name = "Drums";
+    drums.type = TrackType::Drums;
+    drums.role = TrackRole::Drums;
+    drums.drumPattern.id = project.generateId();
+    drums.drumPattern.stepCount = kDefaultDrumSteps;
+    project.tracks_.push_back(std::move(drums));
 
-    project.tracks_.push_back(std::move(track));
+    project.tracks_.push_back(makeMidiTrack(project, "Melody", TrackRole::Melody));
     return project;
 }
 
@@ -37,6 +60,22 @@ const Track* Project::findTrack(Id trackId) const noexcept
 {
     for (const auto& track : tracks_)
         if (track.id == trackId)
+            return &track;
+    return nullptr;
+}
+
+Track* Project::findTrackByRole(TrackRole role) noexcept
+{
+    for (auto& track : tracks_)
+        if (track.role == role)
+            return &track;
+    return nullptr;
+}
+
+const Track* Project::findTrackByRole(TrackRole role) const noexcept
+{
+    for (const auto& track : tracks_)
+        if (track.role == role)
             return &track;
     return nullptr;
 }
@@ -87,11 +126,15 @@ const MidiNote* Project::findNote(Id trackId, Id clipId, Id noteId) const noexce
 
 Track* Project::primaryMidiTrack() noexcept
 {
+    if (auto* chords = findTrackByRole(TrackRole::Chords))
+        return chords;
     return tracks_.empty() ? nullptr : &tracks_.front();
 }
 
 const Track* Project::primaryMidiTrack() const noexcept
 {
+    if (const auto* chords = findTrackByRole(TrackRole::Chords))
+        return chords;
     return tracks_.empty() ? nullptr : &tracks_.front();
 }
 
@@ -117,6 +160,15 @@ std::size_t Project::totalNoteCount() const noexcept
     for (const auto& track : tracks_)
         for (const auto& clip : track.clips)
             count += clip.notes.size();
+    return count;
+}
+
+std::size_t Project::totalDrumHitCount() const noexcept
+{
+    std::size_t count = 0;
+    for (const auto& track : tracks_)
+        if (track.type == TrackType::Drums)
+            count += track.drumPattern.hits.size();
     return count;
 }
 

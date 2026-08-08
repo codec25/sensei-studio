@@ -65,6 +65,9 @@ private:
     [[nodiscard]] const sensei::core::MidiNote* hitTestNote(juce::Point<float> pos, bool& nearRightEdge) const;
     void drawNoteRect(juce::Graphics& g, double startBeat, int pitch, double lengthBeats,
                       float velocity, bool selected) const;
+    [[nodiscard]] sensei::core::Track* activeTrack() noexcept;
+    [[nodiscard]] sensei::core::MidiClip* activeClip() noexcept;
+    [[nodiscard]] const sensei::core::MidiClip* activeClip() const noexcept;
     void deleteSelected();
     void notifyEdited();
     void clearPreview() noexcept;

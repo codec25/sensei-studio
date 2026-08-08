@@ -1,7 +1,10 @@
 #pragma once
 
+#include "ChordHelperPanel.hpp"
+#include "DrumGrid.hpp"
 #include "PianoRoll.hpp"
 #include "SenseiPanel.hpp"
+#include "TrackList.hpp"
 #include "TransportBar.hpp"
 
 #include "sensei/core/Document.hpp"
@@ -22,18 +25,21 @@ public:
 
 private:
     void timerCallback() override;
-    void refreshSensei(bool force);
+    void refreshAll();
     void handleProjectEdited();
+    sensei::core::SoundProgram auditionProgram() const;
 
     sensei::core::Document document_;
     sensei::engine::AudioEngine audioEngine_;
 
     juce::Label brandLabel_;
     juce::Label subtitleLabel_;
-    juce::Label trackLabel_;
     juce::Label helpLabel_;
+    juce::Label positionLabel_;
     TransportBar transportBar_;
+    TrackList trackList_;
+    ChordHelperPanel chordHelper_;
+    DrumGrid drumGrid_;
     PianoRoll pianoRoll_;
     SenseiPanel senseiPanel_;
-    juce::Label positionLabel_;
 };

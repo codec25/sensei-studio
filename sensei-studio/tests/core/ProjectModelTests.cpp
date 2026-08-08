@@ -11,7 +11,7 @@ TEST_CASE("Starter project defaults", "[project]")
 {
     const auto project = Project::createStarter();
     REQUIRE(project.id() != kInvalidId);
-    REQUIRE(project.tracks().size() == 1);
+    REQUIRE(project.tracks().size() == 4);
     REQUIRE(project.primaryMidiTrack() != nullptr);
     REQUIRE(project.primaryClip() != nullptr);
     REQUIRE(project.primaryClip()->notes.empty());
