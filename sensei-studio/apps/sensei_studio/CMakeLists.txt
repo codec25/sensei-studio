@@ -15,6 +15,8 @@ target_sources(sensei_studio
     Source/TransportBar.hpp
     Source/NoteKeyboard.cpp
     Source/NoteKeyboard.hpp
+    Source/PianoRoll.cpp
+    Source/PianoRoll.hpp
     Source/SenseiPanel.cpp
     Source/SenseiPanel.hpp
 )

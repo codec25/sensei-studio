@@ -3,6 +3,11 @@ include(Catch)
 
 add_executable(sensei_core_tests
   core/TransportTests.cpp
+  core/ProjectModelTests.cpp
+  core/NoteEditingTests.cpp
+  core/LoopTransportTests.cpp
+  core/UndoRedoTests.cpp
+  core/SenseiObservationTests.cpp
 )
 
 target_link_libraries(sensei_core_tests

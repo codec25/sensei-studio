@@ -10,6 +10,8 @@ namespace sensei::core {
 
 // Core-owned transport. Public getters/setters are safe for UI (message thread)
 // and audio-thread readers via atomics. No JUCE types here.
+// Musical position is stored in beats; advance() converts seconds using BPM
+// and wraps into the loop region when looping is enabled.
 class Transport
 {
 public:
@@ -20,7 +22,7 @@ public:
     void stop() noexcept
     {
         playing_.store(false, std::memory_order_release);
-        positionSeconds_.store(0.0, std::memory_order_release);
+        positionBeats_.store(0.0, std::memory_order_release);
     }
 
     [[nodiscard]] bool isPlaying() const noexcept
@@ -38,9 +40,32 @@ public:
         return bpm_.load(std::memory_order_acquire);
     }
 
+    void setLoop(double startBeat, double lengthBeats, bool enabled) noexcept
+    {
+        loopStartBeats_.store(std::max(0.0, startBeat), std::memory_order_release);
+        loopLengthBeats_.store(lengthBeats > 0.0 ? lengthBeats : kDefaultLoopBeats,
+                               std::memory_order_release);
+        loopEnabled_.store(enabled, std::memory_order_release);
+    }
+
+    [[nodiscard]] bool loopEnabled() const noexcept
+    {
+        return loopEnabled_.load(std::memory_order_acquire);
+    }
+
+    [[nodiscard]] double loopStartBeats() const noexcept
+    {
+        return loopStartBeats_.load(std::memory_order_acquire);
+    }
+
+    [[nodiscard]] double loopLengthBeats() const noexcept
+    {
+        return loopLengthBeats_.load(std::memory_order_acquire);
+    }
+
     void resetPosition() noexcept
     {
-        positionSeconds_.store(0.0, std::memory_order_release);
+        positionBeats_.store(0.0, std::memory_order_release);
     }
 
     // Called from the audio thread while playing. Realtime-safe.
@@ -49,20 +74,27 @@ public:
         if (! isPlaying() || deltaSeconds <= 0.0)
             return;
 
-        const auto current = positionSeconds_.load(std::memory_order_relaxed);
-        positionSeconds_.store(current + deltaSeconds, std::memory_order_relaxed);
-    }
+        const double bpmValue = bpm();
+        if (bpmValue <= 0.0)
+            return;
 
-    [[nodiscard]] double positionSeconds() const noexcept
-    {
-        return positionSeconds_.load(std::memory_order_acquire);
+        double beats = positionBeats_.load(std::memory_order_relaxed)
+                       + deltaSeconds * (bpmValue / 60.0);
+        beats = wrapBeats(beats);
+        positionBeats_.store(beats, std::memory_order_relaxed);
     }
 
     [[nodiscard]] double positionBeats() const noexcept
     {
-        const auto seconds = positionSeconds();
-        const auto beatsPerSecond = bpm() / 60.0;
-        return seconds * beatsPerSecond;
+        return positionBeats_.load(std::memory_order_acquire);
+    }
+
+    [[nodiscard]] double positionSeconds() const noexcept
+    {
+        const double bpmValue = bpm();
+        if (bpmValue <= 0.0)
+            return 0.0;
+        return positionBeats() * (60.0 / bpmValue);
     }
 
     static double clampBpm(double bpm) noexcept
@@ -73,9 +105,29 @@ public:
     }
 
 private:
+    [[nodiscard]] double wrapBeats(double beats) const noexcept
+    {
+        if (! loopEnabled_.load(std::memory_order_relaxed))
+            return beats;
+
+        const double start = loopStartBeats_.load(std::memory_order_relaxed);
+        const double length = loopLengthBeats_.load(std::memory_order_relaxed);
+        if (length <= 0.0)
+            return beats;
+
+        double relative = beats - start;
+        relative = std::fmod(relative, length);
+        if (relative < 0.0)
+            relative += length;
+        return start + relative;
+    }
+
     std::atomic<bool> playing_ { false };
     std::atomic<double> bpm_ { kDefaultBpm };
-    std::atomic<double> positionSeconds_ { 0.0 };
+    std::atomic<double> positionBeats_ { 0.0 };
+    std::atomic<bool> loopEnabled_ { true };
+    std::atomic<double> loopStartBeats_ { 0.0 };
+    std::atomic<double> loopLengthBeats_ { kDefaultLoopBeats };
 };
 
 } // namespace sensei::core

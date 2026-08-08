@@ -14,6 +14,11 @@ void AudioEngine::setTransport(sensei::core::Transport* transport) noexcept
     transport_.store(transport, std::memory_order_release);
 }
 
+void AudioEngine::setSnapshotPublisher(const sensei::core::SnapshotPublisher* publisher) noexcept
+{
+    snapshots_.store(publisher, std::memory_order_release);
+}
+
 bool AudioEngine::initialise()
 {
     if (initialised_.load())
@@ -36,6 +41,7 @@ void AudioEngine::shutdown()
     deviceManager_.removeAudioCallback(this);
     deviceManager_.closeAudioDevice();
     synth_.allNotesOff();
+    scheduler_.reset();
 }
 
 void AudioEngine::noteOn(int midiNote, float velocity) noexcept
@@ -58,12 +64,13 @@ void AudioEngine::audioDeviceAboutToStart(juce::AudioIODevice* device)
     const double sr = device != nullptr ? device->getCurrentSampleRate() : 44100.0;
     sampleRate_.store(sr > 0.0 ? sr : 44100.0, std::memory_order_relaxed);
     synth_.prepare(sampleRate_.load(std::memory_order_relaxed));
+    scheduler_.reset();
 }
 
 void AudioEngine::audioDeviceStopped()
 {
     synth_.allNotesOff();
-    wasPlaying_.store(false);
+    scheduler_.reset();
 }
 
 void AudioEngine::audioDeviceIOCallbackWithContext(const float* const*,
@@ -73,7 +80,7 @@ void AudioEngine::audioDeviceIOCallbackWithContext(const float* const*,
                                                    int numSamples,
                                                    const juce::AudioIODeviceCallbackContext&)
 {
-    // Realtime callback: clear buffers, render synth, advance transport.
+    // Realtime callback: clear, schedule MIDI from snapshot, render synth.
     // No blocking, file/network I/O, AI, UI, or heap allocation here.
     for (int ch = 0; ch < numOutputChannels; ++ch)
     {
@@ -81,28 +88,17 @@ void AudioEngine::audioDeviceIOCallbackWithContext(const float* const*,
             juce::FloatVectorOperations::clear(outputChannelData[ch], numSamples);
     }
 
+    auto* transport = transport_.load(std::memory_order_acquire);
+    const auto* snapshots = snapshots_.load(std::memory_order_acquire);
+    const double sampleRate = sampleRate_.load(std::memory_order_relaxed);
+
+    if (transport != nullptr && snapshots != nullptr)
+        scheduler_.process(snapshots->read(), *transport, synth_, numSamples, sampleRate);
+
     float* left = numOutputChannels > 0 ? outputChannelData[0] : nullptr;
     float* right = numOutputChannels > 1 ? outputChannelData[1] : left;
-
     if (left != nullptr)
         synth_.process(left, right, numSamples);
-
-    auto* transport = transport_.load(std::memory_order_acquire);
-    const double sampleRate = sampleRate_.load(std::memory_order_relaxed);
-    if (transport == nullptr || sampleRate <= 0.0 || numSamples <= 0)
-        return;
-
-    const bool playing = transport->isPlaying();
-    const bool wasPlaying = wasPlaying_.exchange(playing);
-
-    if (! playing)
-    {
-        if (wasPlaying)
-            synth_.allNotesOff();
-        return;
-    }
-
-    transport->advance(static_cast<double>(numSamples) / sampleRate);
 }
 
 } // namespace sensei::engine
