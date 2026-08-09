@@ -13,6 +13,7 @@ TransportBar::TransportBar()
     addAndMakeVisible(bpmEditor_);
     addAndMakeVisible(positionLabel_);
     addAndMakeVisible(modeLabel_);
+    addAndMakeVisible(audioStatusLabel_);
 
     loopButton_.setClickingTogglesState(true);
     bpmLabel_.setJustificationType(juce::Justification::centredRight);
@@ -20,7 +21,11 @@ TransportBar::TransportBar()
     bpmEditor_.setJustificationType(juce::Justification::centred);
     positionLabel_.setJustificationType(juce::Justification::centredLeft);
     modeLabel_.setJustificationType(juce::Justification::centredRight);
+    audioStatusLabel_.setJustificationType(juce::Justification::centredRight);
+    audioStatusLabel_.setFont(juce::FontOptions(12.5f));
     positionLabel_.setFont(juce::FontOptions(15.0f).withStyle("Bold"));
+    setAudioDeviceAvailable(true);
+    applyThemeColours();
 
     playButton_.onClick = [this] {
         if (onPlay)
@@ -60,6 +65,35 @@ void TransportBar::setPositionBeats(double beats, double songLengthBeats, bool l
     loopButton_.setToggleState(loopEnabled_, juce::dontSendNotification);
 }
 
+void TransportBar::setAudioDeviceAvailable(bool available)
+{
+    audioDeviceAvailable_ = available;
+    if (audioDeviceAvailable_)
+    {
+        audioStatusLabel_.setText({}, juce::dontSendNotification);
+        audioStatusLabel_.setVisible(false);
+    }
+    else
+    {
+        audioStatusLabel_.setText("Audio device unavailable", juce::dontSendNotification);
+        audioStatusLabel_.setVisible(true);
+    }
+    applyThemeColours();
+    resized();
+}
+
+void TransportBar::applyThemeColours()
+{
+    const auto& p = studioPalette();
+    bpmLabel_.setColour(juce::Label::textColourId, p.textMuted);
+    positionLabel_.setColour(juce::Label::textColourId, p.textPrimary);
+    modeLabel_.setColour(juce::Label::textColourId, p.textMuted);
+    audioStatusLabel_.setColour(juce::Label::textColourId, p.danger);
+    bpmEditor_.setColour(juce::Label::backgroundColourId, p.bg2);
+    bpmEditor_.setColour(juce::Label::outlineColourId, p.borderSoft);
+    bpmEditor_.setColour(juce::Label::textColourId, p.textPrimary);
+}
+
 void TransportBar::refreshFromTransport()
 {
     if (transport_ == nullptr)
@@ -96,5 +130,7 @@ void TransportBar::resized()
     bpmEditor_.setBounds(area.removeFromLeft(64));
     area.removeFromLeft(18);
     positionLabel_.setBounds(area.removeFromLeft(100));
+    if (audioStatusLabel_.isVisible())
+        audioStatusLabel_.setBounds(area.removeFromRight(190));
     modeLabel_.setBounds(area.removeFromRight(120));
 }

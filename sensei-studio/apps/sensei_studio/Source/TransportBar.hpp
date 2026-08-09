@@ -14,7 +14,9 @@ public:
 
     void setTransport(sensei::core::Transport* transport);
     void setPositionBeats(double beats, double songLengthBeats, bool loopEnabled);
+    void setAudioDeviceAvailable(bool available);
     void refreshFromTransport();
+    void applyThemeColours();
 
     std::function<void()> onPlay;
     std::function<void()> onStop;
@@ -33,7 +35,9 @@ private:
     juce::Label bpmEditor_;
     juce::Label positionLabel_;
     juce::Label modeLabel_;
+    juce::Label audioStatusLabel_;
     double positionBeats_ = 0.0;
     double songLengthBeats_ = 16.0;
     bool loopEnabled_ = true;
+    bool audioDeviceAvailable_ = true;
 };

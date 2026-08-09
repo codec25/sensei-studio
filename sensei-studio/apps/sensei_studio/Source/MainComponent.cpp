@@ -40,7 +40,8 @@ MainComponent::MainComponent()
 
     audioEngine_.setTransport(&document_.transport());
     audioEngine_.setSnapshotPublisher(&document_.snapshots());
-    audioEngine_.initialise();
+    const bool audioOk = audioEngine_.initialise();
+    transportBar_.setAudioDeviceAvailable(audioOk);
 
     transportBar_.setTransport(&document_.transport());
     transportBar_.onPlay = [this] {
@@ -122,6 +123,7 @@ void MainComponent::applyThemeToChrome()
     const auto& p = themeController_.palette();
     brandLabel_.setColour(juce::Label::textColourId, p.textPrimary);
     themeBox_.setSelectedId(static_cast<int>(themeController_.themeId()) + 1, juce::dontSendNotification);
+    transportBar_.applyThemeColours();
     repaint();
 }
 
