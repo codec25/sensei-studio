@@ -1,4 +1,5 @@
 #include "MainComponent.hpp"
+#include "ui/Theme.hpp"
 
 class SenseiStudioApplication final : public juce::JUCEApplication
 {
@@ -19,14 +20,12 @@ private:
     {
     public:
         explicit MainWindow(const juce::String& name)
-            : DocumentWindow(name,
-                             juce::Desktop::getInstance().getDefaultLookAndFeel()
-                                 .findColour(backgroundColourId),
-                             DocumentWindow::allButtons)
+            : DocumentWindow(name, studioPalette().bg0, DocumentWindow::allButtons)
         {
             setUsingNativeTitleBar(true);
             setContentOwned(new MainComponent(), true);
             setResizable(true, true);
+            setResizeLimits(1100, 700, 10000, 10000);
             centreWithSize(getWidth(), getHeight());
             setVisible(true);
         }

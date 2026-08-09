@@ -104,10 +104,32 @@ struct Track
     TrackRole role = TrackRole::Melody;
     // Stable instrument/preset identity (Core metadata only — Engine owns DSP).
     InstrumentId instrumentId = InstrumentId::WarmKeys;
+    // Playback routing — mute always silences; solo (when any solo active) gates others.
+    bool muted = false;
+    bool solo = false;
     std::vector<MidiClip> clips;
     std::vector<DrumClip> drumClips;
     // True while track content still originates from a Sensei-generated action.
     bool generatedOrigin = false;
 };
 
+[[nodiscard]] inline bool projectHasSolo(const std::vector<Track>& tracks) noexcept
+{
+    for (const auto& track : tracks)
+        if (track.solo)
+            return true;
+    return false;
+}
+
+// Deterministic audible gate used by snapshot publication (and tests).
+[[nodiscard]] inline bool isTrackAudible(const Track& track, bool anySolo) noexcept
+{
+    if (track.muted)
+        return false;
+    if (anySolo)
+        return track.solo;
+    return true;
+}
+
 } // namespace sensei::core
+

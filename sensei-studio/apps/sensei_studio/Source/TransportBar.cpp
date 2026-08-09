@@ -1,19 +1,26 @@
 #include "TransportBar.hpp"
 
+#include "sensei/core/Types.hpp"
+
+#include <cmath>
+
 TransportBar::TransportBar()
 {
     addAndMakeVisible(playButton_);
     addAndMakeVisible(stopButton_);
+    addAndMakeVisible(loopButton_);
     addAndMakeVisible(bpmLabel_);
     addAndMakeVisible(bpmEditor_);
-    addAndMakeVisible(statusLabel_);
+    addAndMakeVisible(positionLabel_);
+    addAndMakeVisible(modeLabel_);
 
+    loopButton_.setClickingTogglesState(true);
     bpmLabel_.setJustificationType(juce::Justification::centredRight);
     bpmEditor_.setEditable(true);
-    bpmEditor_.setColour(juce::Label::backgroundColourId, juce::Colour(0xff111419));
-    bpmEditor_.setColour(juce::Label::outlineColourId, juce::Colour(0xff2a303a));
     bpmEditor_.setJustificationType(juce::Justification::centred);
-    statusLabel_.setColour(juce::Label::textColourId, juce::Colour(0xff9ca6b5));
+    positionLabel_.setJustificationType(juce::Justification::centredLeft);
+    modeLabel_.setJustificationType(juce::Justification::centredRight);
+    positionLabel_.setFont(juce::FontOptions(15.0f).withStyle("Bold"));
 
     playButton_.onClick = [this] {
         if (onPlay)
@@ -22,6 +29,10 @@ TransportBar::TransportBar()
     stopButton_.onClick = [this] {
         if (onStop)
             onStop();
+    };
+    loopButton_.onClick = [this] {
+        if (onToggleLoop)
+            onToggleLoop();
     };
     bpmEditor_.onTextChange = [this] {
         if (onBpmChanged)
@@ -35,33 +46,55 @@ void TransportBar::setTransport(sensei::core::Transport* transport)
     refreshFromTransport();
 }
 
+void TransportBar::setPositionBeats(double beats, double songLengthBeats, bool loopEnabled)
+{
+    positionBeats_ = beats;
+    songLengthBeats_ = songLengthBeats;
+    loopEnabled_ = loopEnabled;
+
+    const int bar = 1 + (int) std::floor(beats / sensei::core::kBeatsPerBar);
+    const double beatInBar = std::fmod(beats, sensei::core::kBeatsPerBar) + 1.0;
+    positionLabel_.setText(juce::String::formatted("%d : %.1f", bar, beatInBar),
+                           juce::dontSendNotification);
+    modeLabel_.setText(loopEnabled_ ? "Loop region" : "Whole song", juce::dontSendNotification);
+    loopButton_.setToggleState(loopEnabled_, juce::dontSendNotification);
+}
+
 void TransportBar::refreshFromTransport()
 {
     if (transport_ == nullptr)
         return;
 
     bpmEditor_.setText(juce::String(transport_->bpm(), 1), juce::dontSendNotification);
-    statusLabel_.setText(transport_->isPlaying() ? "Playing" : "Ready",
-                         juce::dontSendNotification);
     playButton_.setEnabled(! transport_->isPlaying());
+    playButton_.setButtonText(transport_->isPlaying() ? "Playing" : "Play");
+    setPositionBeats(transport_->positionBeats(),
+                     transport_->songLengthBeats() > 0.0 ? transport_->songLengthBeats()
+                                                        : songLengthBeats_,
+                     transport_->loopEnabled());
 }
 
 void TransportBar::paint(juce::Graphics& g)
 {
-    g.fillAll(juce::Colour(0xff12151a));
-    g.setColour(juce::Colour(0xff2a303a));
-    g.drawLine(0.0f, 0.0f, static_cast<float>(getWidth()), 0.0f, 1.0f);
+    const auto& p = studioPalette();
+    g.fillAll(p.transportBg);
+    g.setColour(p.accentSoft);
+    g.fillRect(0, getHeight() - 2, getWidth(), 2);
 }
 
 void TransportBar::resized()
 {
-    auto area = getLocalBounds().reduced(12, 10);
-    playButton_.setBounds(area.removeFromLeft(80));
+    auto area = getLocalBounds().reduced(14, 8);
+    playButton_.setBounds(area.removeFromLeft(88));
     area.removeFromLeft(8);
-    stopButton_.setBounds(area.removeFromLeft(80));
-    area.removeFromLeft(16);
+    stopButton_.setBounds(area.removeFromLeft(72));
+    area.removeFromLeft(12);
+    loopButton_.setBounds(area.removeFromLeft(72));
+    area.removeFromLeft(18);
     bpmLabel_.setBounds(area.removeFromLeft(40));
     area.removeFromLeft(6);
     bpmEditor_.setBounds(area.removeFromLeft(64));
-    statusLabel_.setBounds(area.removeFromRight(120));
+    area.removeFromLeft(18);
+    positionLabel_.setBounds(area.removeFromLeft(100));
+    modeLabel_.setBounds(area.removeFromRight(120));
 }

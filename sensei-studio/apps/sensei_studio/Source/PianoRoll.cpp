@@ -1,5 +1,7 @@
 #include "PianoRoll.hpp"
 
+#include "ui/Theme.hpp"
+
 #include "sensei/core/Grid.hpp"
 
 #include <cmath>
@@ -60,17 +62,19 @@ void PianoRoll::drawNoteRect(juce::Graphics& g,
     const float y = yForPitch(pitch);
     const float w = juce::jmax(6.0f, static_cast<float>(lengthBeats) * kBeatW);
 
-    g.setColour(selected ? juce::Colour(0xffeaff9a) : juce::Colour(0xffd5ff5c));
+    const auto& p = studioPalette();
+    g.setColour(selected ? p.accent.brighter(0.25f) : p.accent);
     g.setOpacity(0.45f + velocity * 0.55f);
     g.fillRoundedRectangle(x, y + 1.0f, w, kRowH - 2.0f, 4.0f);
     g.setOpacity(1.0f);
-    g.setColour(selected ? juce::Colour(0xff9cf0ff) : juce::Colour(0xff2a303a));
+    g.setColour(selected ? p.selectedOutline : p.borderSoft);
     g.drawRoundedRectangle(x, y + 1.0f, w, kRowH - 2.0f, 4.0f, selected ? 2.0f : 1.0f);
 }
 
 void PianoRoll::paint(juce::Graphics& g)
 {
-    g.fillAll(juce::Colour(0xff11151a));
+    const auto& p = studioPalette();
+    g.fillAll(p.bg0);
 
     const float contentH = kNumRows * kRowH;
     const double loopBeats = document_ != nullptr ? document_->project().loop().lengthBeats : 16.0;
@@ -80,18 +84,21 @@ void PianoRoll::paint(juce::Graphics& g)
     {
         const int pitch = kTopMidi - row;
         const float y = static_cast<float>(row) * kRowH;
-        g.setColour(isBlackKey(pitch) ? juce::Colour(0xff171b21) : juce::Colour(0xff1e222a));
+        g.setColour(isBlackKey(pitch) ? p.bg1 : p.bg2);
         g.fillRect(kKeyW, y, contentW - kKeyW, kRowH);
 
-        g.setColour(juce::Colour(0xff0d1014));
+        g.setColour(p.bg0);
         g.fillRect(0.0f, y, kKeyW, kRowH);
-        g.setColour(juce::Colour(0xff778190));
-        g.setFont(11.0f);
+        g.setColour(p.textMuted);
+        g.setFont(12.0f);
         g.drawText(noteName(pitch), juce::Rectangle<float>(4.0f, y, kKeyW - 8.0f, kRowH),
                    juce::Justification::centredLeft, false);
 
-        g.setColour(juce::Colour(0xff222832));
-        g.drawHorizontalLine(static_cast<int>(y + kRowH), kKeyW, contentW);
+        if ((row % 4) == 0)
+        {
+            g.setColour(p.gridMinor.withAlpha(0.45f));
+            g.drawHorizontalLine(static_cast<int>(y + kRowH), kKeyW, contentW);
+        }
     }
 
     const int steps = static_cast<int>(std::lround(loopBeats / sensei::core::kDefaultGridBeats));
@@ -99,7 +106,9 @@ void PianoRoll::paint(juce::Graphics& g)
     {
         const float x = kKeyW + static_cast<float>(s) * (kBeatW * static_cast<float>(sensei::core::kDefaultGridBeats));
         const bool beatLine = (s % 4) == 0;
-        g.setColour(beatLine ? juce::Colour(0xff3a4452) : juce::Colour(0xff272d35));
+        if (! beatLine && (s % 2) != 0)
+            continue;
+        g.setColour(beatLine ? p.gridMajor.withAlpha(0.55f) : p.gridMinor.withAlpha(0.35f));
         g.drawVerticalLine(static_cast<int>(x), 0.0f, contentH);
     }
 
@@ -133,11 +142,8 @@ void PianoRoll::paint(juce::Graphics& g)
     }
 
     const float px = xForBeat(playheadBeats_);
-    g.setColour(juce::Colour(0xff9cf0ff));
+    g.setColour(p.playhead);
     g.drawLine(px, 0.0f, px, contentH, 2.0f);
-
-    g.setColour(juce::Colour(0xff2a303a));
-    g.drawRect(getLocalBounds().toFloat(), 1.0f);
 }
 
 void PianoRoll::resized() {}

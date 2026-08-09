@@ -12,6 +12,7 @@
 #include "sensei/core/commands/InstrumentCommands.hpp"
 #include "sensei/core/commands/NoteCommands.hpp"
 #include "sensei/core/commands/TrackContentCommands.hpp"
+#include "sensei/core/commands/TrackMuteCommands.hpp"
 #include "sensei/core/drums/DrumPatterns.hpp"
 #include "sensei/core/harmony/Progressions.hpp"
 #include "sensei/core/sensei/LessonFlow.hpp"
@@ -332,8 +333,13 @@ public:
         slot.loopEnabled = project_.loop().enabled;
         slot.songLengthBeats = project_.songLengthBeats();
 
+        const bool anySolo = projectHasSolo(project_.tracks());
+
         for (const auto& track : project_.tracks())
         {
+            if (! isTrackAudible(track, anySolo))
+                continue;
+
             if (track.type == TrackType::Midi)
             {
                 const auto instrumentId = isValidInstrumentId(track.instrumentId)

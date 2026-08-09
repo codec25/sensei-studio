@@ -2,6 +2,7 @@
 
 #include "sensei/core/Document.hpp"
 #include "sensei/core/commands/TrackContentCommands.hpp"
+#include "ui/Theme.hpp"
 
 #include <juce_gui_basics/juce_gui_basics.h>
 
@@ -20,10 +21,12 @@ public:
 
     void paint(juce::Graphics& g) override
     {
-        g.fillAll(juce::Colour(0xff11151a));
-        g.setColour(juce::Colour(0xff9ca6b5));
-        g.drawText("DRUM GRID · selected clip · click to toggle",
-                   getLocalBounds().removeFromTop(20).reduced(6, 0),
+        const auto& p = studioPalette();
+        g.fillAll(p.bg0);
+        g.setColour(p.textMuted);
+        g.setFont(juce::FontOptions(13.0f));
+        g.drawText("Drum grid · selected clip · click to toggle",
+                   getLocalBounds().removeFromTop(22).reduced(6, 0),
                    juce::Justification::centredLeft, false);
 
         const auto* clip = activeClip();
@@ -33,24 +36,24 @@ public:
         static constexpr const char* names[] { "Kick", "Snare", "Hat" };
         const int steps = clip->pattern.stepCount > 0 ? clip->pattern.stepCount
                                                      : sensei::core::kDefaultDrumSteps;
-        const float cellW = (float) juce::jmax(1, (getWidth() - 56) / juce::jmin(steps, 64));
-        const float cellH = 28.0f;
+        const float cellW = (float) juce::jmax(1, (getWidth() - 64) / juce::jmin(steps, 64));
+        const float cellH = 32.0f;
 
         for (int lane = 0; lane < sensei::core::kDrumLaneCount; ++lane)
         {
-            const float y = 28.0f + lane * (cellH + 6.0f);
-            g.setColour(juce::Colour(0xffdfe4eb));
-            g.drawText(names[lane], juce::Rectangle<float>(4, y, 48, cellH),
+            const float y = 30.0f + lane * (cellH + 8.0f);
+            g.setColour(p.textSecondary);
+            g.setFont(juce::FontOptions(13.0f));
+            g.drawText(names[lane], juce::Rectangle<float>(4, y, 56, cellH),
                        juce::Justification::centredLeft, false);
 
             for (int step = 0; step < steps; ++step)
             {
-                const float x = 56.0f + step * cellW;
+                const float x = 64.0f + step * cellW;
                 const bool on = clip->pattern.hasHit(step, static_cast<sensei::core::DrumLane>(lane));
                 const bool beat = (step % 4) == 0;
-                g.setColour(on ? juce::Colour(0xffd5ff5c)
-                               : (beat ? juce::Colour(0xff2a303a) : juce::Colour(0xff1e222a)));
-                g.fillRoundedRectangle(x + 1, y + 2, cellW - 2, cellH - 4, 3.0f);
+                g.setColour(on ? p.roleDrums : (beat ? p.panelSoft : p.bg2));
+                g.fillRoundedRectangle(x + 1, y + 3, cellW - 2, cellH - 6, 4.0f);
             }
         }
     }
@@ -66,14 +69,14 @@ public:
 
         const int steps = clip->pattern.stepCount > 0 ? clip->pattern.stepCount
                                                      : sensei::core::kDefaultDrumSteps;
-        const float cellW = (float) juce::jmax(1, (getWidth() - 56) / juce::jmin(steps, 64));
-        const float cellH = 28.0f;
-        if (event.x < 56)
+        const float cellW = (float) juce::jmax(1, (getWidth() - 64) / juce::jmin(steps, 64));
+        const float cellH = 32.0f;
+        if (event.x < 64)
             return;
 
-        const int step = juce::jlimit(0, steps - 1, (int) ((event.x - 56) / cellW));
+        const int step = juce::jlimit(0, steps - 1, (int) ((event.x - 64) / cellW));
         const int lane = juce::jlimit(0, sensei::core::kDrumLaneCount - 1,
-                                      (int) ((event.y - 28) / (cellH + 6.0f)));
+                                      (int) ((event.y - 30) / (cellH + 8.0f)));
         document_->setSelectedClipId(track->id, clip->id);
         document_->execute(std::make_unique<sensei::core::ToggleDrumHitCommand>(
             track->id, clip->id, step, static_cast<sensei::core::DrumLane>(lane), 0.85f));
