@@ -13,6 +13,7 @@ add_executable(sensei_core_tests
   core/ChordTests.cpp
   core/DrumBassLessonTests.cpp
   core/ArrangementTests.cpp
+  core/InstrumentTests.cpp
   engine/MidiEventBufferTests.cpp
 )
 
@@ -24,6 +25,7 @@ target_include_directories(sensei_core_tests
 target_link_libraries(sensei_core_tests
   PRIVATE
     sensei::core
+    sensei::engine
     Catch2::Catch2WithMain
 )
 

@@ -105,7 +105,7 @@ private:
     {
         sensei::core::Id id = sensei::core::kInvalidId;
         int pitch = -1;
-        sensei::core::SoundProgram program = sensei::core::SoundProgram::Chords;
+        sensei::core::InstrumentId instrumentId = sensei::core::InstrumentId::WarmKeys;
     };
 
     void clearActive() noexcept
@@ -123,7 +123,7 @@ private:
         {
             const auto& note = snapshot.notes[i];
             if (note.startBeat <= positionBeats + 1.0e-9 && positionBeats < note.endBeat)
-                startNote(note.id, note.pitch, note.velocity, note.program, rack);
+                startNote(note.id, note.pitch, note.velocity, note.instrumentId, rack);
         }
     }
 
@@ -152,36 +152,37 @@ private:
     {
         if (ev.isDrum)
         {
-            rack.triggerDrum(ev.drum, ev.velocity);
+            rack.triggerDrum(ev.instrumentId, ev.drum, ev.velocity);
             return;
         }
         if (ev.isNoteOn)
-            startNote(ev.id, ev.pitch, ev.velocity, ev.program, rack);
+            startNote(ev.id, ev.pitch, ev.velocity, ev.instrumentId, rack);
         else
-            stopNote(ev.id, ev.pitch, ev.program, rack);
+            stopNote(ev.id, ev.pitch, ev.instrumentId, rack);
     }
 
     void startNote(sensei::core::Id id, int pitch, float velocity,
-                   sensei::core::SoundProgram program, InstrumentRack& rack) noexcept
+                   sensei::core::InstrumentId instrumentId, InstrumentRack& rack) noexcept
     {
         for (int i = 0; i < activeCount_; ++i)
             if (active_[static_cast<std::size_t>(i)].id == id)
                 return;
         if (activeCount_ >= kMaxActive)
             return;
-        active_[static_cast<std::size_t>(activeCount_++)] = { id, pitch, program };
-        rack.noteOn(program, pitch, velocity);
+        active_[static_cast<std::size_t>(activeCount_++)] = { id, pitch, instrumentId };
+        rack.noteOn(instrumentId, pitch, velocity);
     }
 
     void stopNote(sensei::core::Id id, int pitch,
-                  sensei::core::SoundProgram program, InstrumentRack& rack) noexcept
+                  sensei::core::InstrumentId instrumentId, InstrumentRack& rack) noexcept
     {
         for (int i = 0; i < activeCount_; ++i)
         {
             auto& a = active_[static_cast<std::size_t>(i)];
             if (a.id == id)
             {
-                rack.noteOff(program, pitch >= 0 ? pitch : a.pitch);
+                (void) instrumentId;
+                rack.noteOff(a.instrumentId, pitch >= 0 ? pitch : a.pitch);
                 active_[static_cast<std::size_t>(i)] = active_[static_cast<std::size_t>(activeCount_ - 1)];
                 active_[static_cast<std::size_t>(activeCount_ - 1)] = {};
                 --activeCount_;

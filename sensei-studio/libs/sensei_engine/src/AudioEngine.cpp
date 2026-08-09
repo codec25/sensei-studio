@@ -44,6 +44,16 @@ void AudioEngine::shutdown()
     scheduler_.reset();
 }
 
+void AudioEngine::noteOn(sensei::core::InstrumentId instrumentId, int midiNote, float velocity) noexcept
+{
+    rack_.noteOn(instrumentId, midiNote, velocity);
+}
+
+void AudioEngine::noteOff(sensei::core::InstrumentId instrumentId, int midiNote) noexcept
+{
+    rack_.noteOff(instrumentId, midiNote);
+}
+
 void AudioEngine::noteOn(sensei::core::SoundProgram program, int midiNote, float velocity) noexcept
 {
     rack_.noteOn(program, midiNote, velocity);

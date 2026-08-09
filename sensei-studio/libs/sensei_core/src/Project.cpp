@@ -10,6 +10,7 @@ Track makeMidiTrack(Project& project, const char* name, TrackRole role)
     track.name = name;
     track.type = TrackType::Midi;
     track.role = role;
+    track.instrumentId = defaultInstrumentForRole(role);
 
     MidiClip clip;
     clip.id = project.generateId();
@@ -41,6 +42,7 @@ Project Project::createStarter(std::string name)
     drums.name = "Drums";
     drums.type = TrackType::Drums;
     drums.role = TrackRole::Drums;
+    drums.instrumentId = defaultInstrumentForRole(TrackRole::Drums);
     DrumClip drumClip;
     drumClip.id = project.generateId();
     drumClip.name = "Loop";

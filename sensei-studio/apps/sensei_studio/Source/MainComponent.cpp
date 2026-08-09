@@ -9,7 +9,7 @@ MainComponent::MainComponent()
     brandLabel_.setText("Sensei Studio", juce::dontSendNotification);
     brandLabel_.setFont(juce::FontOptions(28.0f).withStyle("Bold"));
     brandLabel_.setColour(juce::Label::textColourId, juce::Colour(0xfff4f5f7));
-    subtitleLabel_.setText("Milestone D — arrangement + shape the song", juce::dontSendNotification);
+    subtitleLabel_.setText("Milestone E — sound identity + instruments", juce::dontSendNotification);
     subtitleLabel_.setColour(juce::Label::textColourId, juce::Colour(0xff9ca6b5));
     helpLabel_.setText("Loop → song shape → move/duplicate clips → Play whole song · Sensei never forces",
                        juce::dontSendNotification);
@@ -25,6 +25,7 @@ MainComponent::MainComponent()
     addAndMakeVisible(editBtn_);
     addAndMakeVisible(transportBar_);
     addAndMakeVisible(trackList_);
+    addAndMakeVisible(instrumentPicker_);
     addAndMakeVisible(chordHelper_);
     addAndMakeVisible(arrangementView_);
     addAndMakeVisible(drumGrid_);
@@ -56,6 +57,12 @@ MainComponent::MainComponent()
     trackList_.setDocument(&document_);
     trackList_.onSelectionChanged = [this] { refreshAll(); };
 
+    instrumentPicker_.setDocument(&document_);
+    instrumentPicker_.onChanged = [this] {
+        audioEngine_.allNotesOff();
+        handleProjectEdited();
+    };
+
     chordHelper_.setDocument(&document_);
     chordHelper_.onApplied = [this] { handleProjectEdited(); };
 
@@ -68,10 +75,10 @@ MainComponent::MainComponent()
 
     pianoRoll_.setDocument(&document_);
     pianoRoll_.onAuditionNoteOn = [this](int midi, float vel) {
-        audioEngine_.noteOn(auditionProgram(), midi, vel);
+        audioEngine_.noteOn(auditionInstrument(), midi, vel);
     };
     pianoRoll_.onAuditionNoteOff = [this](int midi) {
-        audioEngine_.noteOff(auditionProgram(), midi);
+        audioEngine_.noteOff(auditionInstrument(), midi);
     };
     pianoRoll_.onProjectEdited = [this] { handleProjectEdited(); };
 
@@ -97,21 +104,24 @@ MainComponent::~MainComponent()
     audioEngine_.shutdown();
 }
 
-sensei::core::SoundProgram MainComponent::auditionProgram() const
+sensei::core::InstrumentId MainComponent::auditionInstrument() const
 {
     if (const auto* t = document_.project().findTrack(document_.selectedTrackId()))
     {
-        if (t->role == sensei::core::TrackRole::Bass)
-            return sensei::core::SoundProgram::Bass;
-        if (t->role == sensei::core::TrackRole::Melody)
-            return sensei::core::SoundProgram::Melody;
+        if (t->type == sensei::core::TrackType::Drums)
+            return sensei::core::InstrumentId::WarmKeys; // pitched audition N/A on drums
+        if (sensei::core::isValidInstrumentId(t->instrumentId)
+            && ! sensei::core::instrumentInfo(t->instrumentId).isDrumKit)
+            return t->instrumentId;
+        return sensei::core::defaultInstrumentForRole(t->role);
     }
-    return sensei::core::SoundProgram::Chords;
+    return sensei::core::InstrumentId::WarmKeys;
 }
 
 void MainComponent::refreshAll()
 {
     trackList_.rebuild();
+    instrumentPicker_.refresh();
     pianoRoll_.repaint();
     drumGrid_.repaint();
     arrangementView_.repaint();
@@ -153,7 +163,9 @@ void MainComponent::resized()
 
     transportBar_.setBounds(area.removeFromBottom(58));
     senseiPanel_.setBounds(area.removeFromRight(340));
-    trackList_.setBounds(area.removeFromLeft(160));
+    auto left = area.removeFromLeft(160);
+    trackList_.setBounds(left.removeFromTop(left.getHeight() - 110));
+    instrumentPicker_.setBounds(left);
 
     auto center = area.reduced(10);
     helpLabel_.setBounds(center.removeFromTop(20));

@@ -26,13 +26,18 @@ public:
     bool initialise();
     void shutdown();
 
+    void noteOn(sensei::core::InstrumentId instrumentId, int midiNote, float velocity = 0.8f) noexcept;
+    void noteOff(sensei::core::InstrumentId instrumentId, int midiNote) noexcept;
     void noteOn(sensei::core::SoundProgram program, int midiNote, float velocity = 0.8f) noexcept;
     void noteOff(sensei::core::SoundProgram program, int midiNote) noexcept;
     void allNotesOff() noexcept;
 
-    // Backward-compatible audition helpers (chords program).
-    void noteOn(int midiNote, float velocity = 0.8f) noexcept { noteOn(sensei::core::SoundProgram::Chords, midiNote, velocity); }
-    void noteOff(int midiNote) noexcept { noteOff(sensei::core::SoundProgram::Chords, midiNote); }
+    // Backward-compatible audition helpers (Warm Keys).
+    void noteOn(int midiNote, float velocity = 0.8f) noexcept
+    {
+        noteOn(sensei::core::InstrumentId::WarmKeys, midiNote, velocity);
+    }
+    void noteOff(int midiNote) noexcept { noteOff(sensei::core::InstrumentId::WarmKeys, midiNote); }
 
     [[nodiscard]] bool isInitialised() const noexcept { return initialised_.load(); }
 

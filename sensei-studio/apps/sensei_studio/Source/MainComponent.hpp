@@ -3,6 +3,7 @@
 #include "ArrangementView.hpp"
 #include "ChordHelperPanel.hpp"
 #include "DrumGrid.hpp"
+#include "InstrumentPicker.hpp"
 #include "PianoRoll.hpp"
 #include "SenseiPanel.hpp"
 #include "TrackList.hpp"
@@ -28,7 +29,7 @@ private:
     void timerCallback() override;
     void refreshAll();
     void handleProjectEdited();
-    sensei::core::SoundProgram auditionProgram() const;
+    sensei::core::InstrumentId auditionInstrument() const;
 
     sensei::core::Document document_;
     sensei::engine::AudioEngine audioEngine_;
@@ -43,6 +44,7 @@ private:
 
     TransportBar transportBar_;
     TrackList trackList_;
+    InstrumentPicker instrumentPicker_;
     ChordHelperPanel chordHelper_;
     ArrangementView arrangementView_;
     DrumGrid drumGrid_;
