@@ -15,6 +15,7 @@ struct MidiEvent
     sensei::core::Id id = sensei::core::kInvalidId;
     int pitch = 0;
     float velocity = 0.0f;
+    sensei::core::InstrumentId instrumentId = sensei::core::InstrumentId::WarmKeys;
     sensei::core::SoundProgram program = sensei::core::SoundProgram::Chords;
     sensei::core::DrumProgram drum = sensei::core::DrumProgram::Kick;
 };
@@ -92,6 +93,7 @@ inline int collectEventsForBeatRange(const sensei::core::SequenceSnapshot& snaps
             ev.id = note.id;
             ev.pitch = note.pitch;
             ev.velocity = note.velocity;
+            ev.instrumentId = note.instrumentId;
             ev.program = note.program;
             ev.sampleOffset = beatToSampleOffset(
                 note.startBeat, fromBeat, rangeBeats, baseSampleOffset, rangeSampleCount);
@@ -111,6 +113,7 @@ inline int collectEventsForBeatRange(const sensei::core::SequenceSnapshot& snaps
             ev.isDrum = false;
             ev.id = note.id;
             ev.pitch = note.pitch;
+            ev.instrumentId = note.instrumentId;
             ev.program = note.program;
             ev.sampleOffset = beatToSampleOffset(
                 note.endBeat, fromBeat, rangeBeats, baseSampleOffset, rangeSampleCount);
@@ -129,6 +132,7 @@ inline int collectEventsForBeatRange(const sensei::core::SequenceSnapshot& snaps
             ev.isNoteOn = true;
             ev.isDrum = true;
             ev.drum = hit.program;
+            ev.instrumentId = hit.instrumentId;
             ev.velocity = hit.velocity;
             ev.sampleOffset = beatToSampleOffset(
                 hit.beat, fromBeat, rangeBeats, baseSampleOffset, rangeSampleCount);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "sensei/core/Id.hpp"
+#include "sensei/core/InstrumentId.hpp"
 #include "sensei/core/MidiClip.hpp"
 #include "sensei/core/Types.hpp"
 
@@ -83,12 +84,26 @@ struct DrumClip
     return static_cast<double>(step) * drumBeatPerStep(lengthBeats, stepCount);
 }
 
+[[nodiscard]] inline constexpr InstrumentId defaultInstrumentForRole(TrackRole role) noexcept
+{
+    switch (role)
+    {
+        case TrackRole::Bass: return InstrumentId::DeepBass;
+        case TrackRole::Melody: return InstrumentId::BrightPluck;
+        case TrackRole::Drums: return InstrumentId::StudioKitBasic;
+        case TrackRole::Chords:
+        default: return InstrumentId::WarmKeys;
+    }
+}
+
 struct Track
 {
     Id id = kInvalidId;
     std::string name;
     TrackType type = TrackType::Midi;
     TrackRole role = TrackRole::Melody;
+    // Stable instrument/preset identity (Core metadata only — Engine owns DSP).
+    InstrumentId instrumentId = InstrumentId::WarmKeys;
     std::vector<MidiClip> clips;
     std::vector<DrumClip> drumClips;
     // True while track content still originates from a Sensei-generated action.

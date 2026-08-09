@@ -25,7 +25,8 @@ public:
 
         for (const auto& track : document_->project().tracks())
         {
-            auto* b = buttons_.add(new juce::TextButton(track.name));
+            const auto info = sensei::core::instrumentInfo(track.instrumentId);
+            auto* b = buttons_.add(new juce::TextButton(track.name + " · " + info.displayName));
             b->setClickingTogglesState(true);
             const Id id = track.id;
             b->onClick = [this, id] {

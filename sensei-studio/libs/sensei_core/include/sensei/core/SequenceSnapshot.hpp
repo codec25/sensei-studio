@@ -1,6 +1,7 @@
 #pragma once
 
 #include "sensei/core/Id.hpp"
+#include "sensei/core/InstrumentId.hpp"
 #include "sensei/core/Types.hpp"
 
 #include <array>
@@ -11,6 +12,7 @@
 
 namespace sensei::core {
 
+// Legacy role-ish program tag (kept for a few call sites / tests). Prefer InstrumentId.
 enum class SoundProgram : std::uint8_t
 {
     Chords = 0,
@@ -25,6 +27,18 @@ enum class DrumProgram : std::uint8_t
     ClosedHat = 2
 };
 
+[[nodiscard]] inline constexpr SoundProgram soundProgramForInstrument(InstrumentId id) noexcept
+{
+    switch (id)
+    {
+        case InstrumentId::DeepBass: return SoundProgram::Bass;
+        case InstrumentId::BrightPluck: return SoundProgram::Melody;
+        case InstrumentId::StudioKitBasic:
+        case InstrumentId::WarmKeys: return SoundProgram::Chords;
+    }
+    return SoundProgram::Chords;
+}
+
 // POD note for audio-thread consumption. Fixed-capacity; no heap on audio thread.
 struct ScheduledNote
 {
@@ -33,13 +47,15 @@ struct ScheduledNote
     float velocity = 0.0f;
     double startBeat = 0.0;
     double endBeat = 0.0;
-    SoundProgram program = SoundProgram::Chords;
+    InstrumentId instrumentId = InstrumentId::WarmKeys;
+    SoundProgram program = SoundProgram::Chords; // derived mirror for compatibility
 };
 
 struct ScheduledDrumHit
 {
     double beat = 0.0;
     DrumProgram program = DrumProgram::Kick;
+    InstrumentId instrumentId = InstrumentId::StudioKitBasic;
     float velocity = 0.8f;
 };
 

@@ -5,9 +5,11 @@
 #include "sensei/core/Transport.hpp"
 #include "sensei/core/arrangement/SongShape.hpp"
 #include "sensei/core/bass/BassGenerator.hpp"
+#include "sensei/core/InstrumentId.hpp"
 #include "sensei/core/commands/ArrangementCommands.hpp"
 #include "sensei/core/commands/CommandHistory.hpp"
 #include "sensei/core/commands/CompoundCommand.hpp"
+#include "sensei/core/commands/InstrumentCommands.hpp"
 #include "sensei/core/commands/NoteCommands.hpp"
 #include "sensei/core/commands/TrackContentCommands.hpp"
 #include "sensei/core/drums/DrumPatterns.hpp"
@@ -298,7 +300,25 @@ public:
             return observationFromLesson(lesson_, project_);
         if (isCompleteLoop(project_))
             return observationFromLesson(lesson_, project_);
-        return ProjectAnalyzer::analyze(project_);
+
+        auto obs = ProjectAnalyzer::analyze(project_);
+        if (const auto* track = project_.findTrack(selectedTrackId_))
+        {
+            const auto info = instrumentInfo(track->instrumentId);
+            // Surface instrument identity when the loop already has established material.
+            if (obs.kind == ObservationKind::LoopHasMaterial)
+            {
+                Observation tip;
+                tip.kind = ObservationKind::InstrumentIdentity;
+                tip.title = std::string(info.displayName);
+                tip.fact = std::string(track->name) + " uses " + info.displayName + ".";
+                tip.advice = info.shortFact;
+                return tip;
+            }
+            if (obs.advice.empty())
+                obs.advice = info.shortFact;
+        }
+        return obs;
     }
 
     void publishSnapshot()
@@ -316,7 +336,10 @@ public:
         {
             if (track.type == TrackType::Midi)
             {
-                const auto program = programForRole(track.role);
+                const auto instrumentId = isValidInstrumentId(track.instrumentId)
+                                              ? track.instrumentId
+                                              : defaultInstrumentForRole(track.role);
+                const auto program = soundProgramForInstrument(instrumentId);
                 for (const auto& clip : track.clips)
                 {
                     for (const auto& note : clip.notes)
@@ -334,6 +357,7 @@ public:
                         scheduled.velocity = note.velocity;
                         scheduled.startBeat = clip.startBeat + note.startBeat;
                         scheduled.endBeat = clip.startBeat + localEnd;
+                        scheduled.instrumentId = instrumentId;
                         scheduled.program = program;
                         if (scheduled.endBeat <= scheduled.startBeat + 1.0e-9)
                             continue;
@@ -347,6 +371,9 @@ public:
             }
             else if (track.type == TrackType::Drums)
             {
+                const auto kitId = isValidInstrumentId(track.instrumentId)
+                                       ? track.instrumentId
+                                       : InstrumentId::StudioKitBasic;
                 for (const auto& clip : track.drumClips)
                 {
                     const double beatPerStep = drumBeatPerStep(clip.lengthBeats, clip.pattern.stepCount);
@@ -364,6 +391,7 @@ public:
                         d.beat = absBeat;
                         d.velocity = hit.velocity;
                         d.program = drumProgramForLane(hit.lane);
+                        d.instrumentId = kitId;
                         slot.drumHits[slot.drumHitCount++] = d;
                     }
                 }
@@ -502,18 +530,6 @@ private:
             }
         }
         return digest;
-    }
-
-    static SoundProgram programForRole(TrackRole role) noexcept
-    {
-        switch (role)
-        {
-            case TrackRole::Bass: return SoundProgram::Bass;
-            case TrackRole::Melody: return SoundProgram::Melody;
-            case TrackRole::Drums:
-            case TrackRole::Chords: return SoundProgram::Chords;
-        }
-        return SoundProgram::Chords;
     }
 
     static DrumProgram drumProgramForLane(DrumLane lane) noexcept

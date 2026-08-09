@@ -1,74 +1,122 @@
 #pragma once
 
+#include "sensei/core/InstrumentId.hpp"
 #include "sensei/core/SequenceSnapshot.hpp"
-#include "sensei/engine/SimpleDrumEngine.hpp"
-#include "sensei/engine/SimpleSynth.hpp"
+#include "sensei/engine/instruments/BrightPluck.hpp"
+#include "sensei/engine/instruments/DeepBass.hpp"
+#include "sensei/engine/instruments/StudioDrumKit.hpp"
+#include "sensei/engine/instruments/WarmKeys.hpp"
 
 namespace sensei::engine {
 
-// Temporary multi-program rack for Milestone C learning sounds.
+// Routes by stable InstrumentId to differentiated built-in engines.
 class InstrumentRack
 {
 public:
-    void prepare(double sampleRate) noexcept
+    void prepare(double sampleRate, int maxBlockSize = 512) noexcept
     {
-        chords_.prepare(sampleRate);
-        bass_.prepare(sampleRate);
-        melody_.prepare(sampleRate);
-        drums_.prepare(sampleRate);
+        warmKeys_.prepare(sampleRate, maxBlockSize);
+        deepBass_.prepare(sampleRate, maxBlockSize);
+        brightPluck_.prepare(sampleRate, maxBlockSize);
+        studioKit_.prepare(sampleRate, maxBlockSize);
     }
 
+    void noteOn(sensei::core::InstrumentId id, int midi, float velocity) noexcept
+    {
+        if (auto* inst = pitched(id))
+            inst->noteOn(midi, velocity);
+    }
+
+    void noteOff(sensei::core::InstrumentId id, int midi) noexcept
+    {
+        if (auto* inst = pitched(id))
+            inst->noteOff(midi);
+    }
+
+    // Compatibility overload used by older call sites.
     void noteOn(sensei::core::SoundProgram program, int midi, float velocity) noexcept
     {
-        synthFor(program).noteOn(midi, velocity);
+        noteOn(instrumentForProgram(program), midi, velocity);
     }
 
     void noteOff(sensei::core::SoundProgram program, int midi) noexcept
     {
-        synthFor(program).noteOff(midi);
+        noteOff(instrumentForProgram(program), midi);
     }
 
-    void triggerDrum(sensei::core::DrumProgram program, float velocity) noexcept
+    void triggerDrum(sensei::core::DrumProgram pad, float velocity) noexcept
     {
-        drums_.trigger(program, velocity);
+        studioKit_.trigger(pad, velocity);
+    }
+
+    void triggerDrum(sensei::core::InstrumentId kitId,
+                     sensei::core::DrumProgram pad,
+                     float velocity) noexcept
+    {
+        if (kitId == sensei::core::InstrumentId::StudioKitBasic)
+            studioKit_.trigger(pad, velocity);
+        else
+            studioKit_.trigger(pad, velocity); // single kit in Milestone E
     }
 
     void allNotesOff() noexcept
     {
-        chords_.allNotesOff();
-        bass_.allNotesOff();
-        melody_.allNotesOff();
-        drums_.allOff();
+        warmKeys_.allNotesOff();
+        deepBass_.allNotesOff();
+        brightPluck_.allNotesOff();
+        studioKit_.allOff();
     }
 
     void process(float* left, float* right, int numSamples) noexcept
     {
-        chords_.process(left, right, numSamples);
-        bass_.process(left, right, numSamples);
-        melody_.process(left, right, numSamples);
-        drums_.process(left, right, numSamples);
+        warmKeys_.process(left, right, numSamples);
+        deepBass_.process(left, right, numSamples);
+        brightPluck_.process(left, right, numSamples);
+        studioKit_.process(left, right, numSamples);
     }
 
-    SimpleSynth& chords() noexcept { return chords_; }
-    SimpleSynth& bass() noexcept { return bass_; }
-    SimpleSynth& melody() noexcept { return melody_; }
-
-private:
-    SimpleSynth& synthFor(sensei::core::SoundProgram program) noexcept
+    [[nodiscard]] Instrument* pitched(sensei::core::InstrumentId id) noexcept
     {
-        switch (program)
+        switch (id)
         {
-            case sensei::core::SoundProgram::Bass: return bass_;
-            case sensei::core::SoundProgram::Melody: return melody_;
-            case sensei::core::SoundProgram::Chords:
-            default: return chords_;
+            case sensei::core::InstrumentId::DeepBass: return &deepBass_;
+            case sensei::core::InstrumentId::BrightPluck: return &brightPluck_;
+            case sensei::core::InstrumentId::WarmKeys: return &warmKeys_;
+            case sensei::core::InstrumentId::StudioKitBasic:
+            default: return nullptr;
         }
     }
 
-    SimpleSynth chords_;
-    SimpleSynth bass_;
-    SimpleSynth melody_;
-    SimpleDrumEngine drums_;
+    [[nodiscard]] const Instrument* pitched(sensei::core::InstrumentId id) const noexcept
+    {
+        switch (id)
+        {
+            case sensei::core::InstrumentId::DeepBass: return &deepBass_;
+            case sensei::core::InstrumentId::BrightPluck: return &brightPluck_;
+            case sensei::core::InstrumentId::WarmKeys: return &warmKeys_;
+            case sensei::core::InstrumentId::StudioKitBasic:
+            default: return nullptr;
+        }
+    }
+
+    [[nodiscard]] StudioDrumKit& drums() noexcept { return studioKit_; }
+
+private:
+    static sensei::core::InstrumentId instrumentForProgram(sensei::core::SoundProgram program) noexcept
+    {
+        switch (program)
+        {
+            case sensei::core::SoundProgram::Bass: return sensei::core::InstrumentId::DeepBass;
+            case sensei::core::SoundProgram::Melody: return sensei::core::InstrumentId::BrightPluck;
+            case sensei::core::SoundProgram::Chords:
+            default: return sensei::core::InstrumentId::WarmKeys;
+        }
+    }
+
+    WarmKeys warmKeys_;
+    DeepBass deepBass_;
+    BrightPluck brightPluck_;
+    StudioDrumKit studioKit_;
 };
 
 } // namespace sensei::engine

@@ -22,7 +22,8 @@ enum class ObservationKind
     FirstVariationCreated,
     IntroCreated,
     ContrastIntroduced,
-    FirstFullSongStructureCreated
+    FirstFullSongStructureCreated,
+    InstrumentIdentity
 };
 
 struct Observation
