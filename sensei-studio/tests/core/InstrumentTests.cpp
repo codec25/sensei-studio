@@ -120,15 +120,14 @@ TEST_CASE("Rack routes instrument IDs to distinct engines", "[instrument][engine
     REQUIRE(energy > 0.0f);
 
     rack.allNotesOff();
-    // After allNotesOff, a short process should decay toward silence (no stuck full-amp notes).
+    // After hard allNotesOff, process should stay silent (no stuck voices).
     left.fill(0.0f);
     right.fill(0.0f);
-    for (int n = 0; n < 20; ++n)
-        rack.process(left.data(), right.data(), 64);
+    rack.process(left.data(), right.data(), 64);
     float after = 0.0f;
     for (float s : left)
         after += std::fabs(s);
-    REQUIRE(after < 0.05f);
+    REQUIRE(after == Catch::Approx(0.0f).margin(1.0e-6));
 }
 
 TEST_CASE("Reject drum kit on MIDI track and pitched on drums", "[instrument]")
@@ -149,16 +148,13 @@ TEST_CASE("Sensei surfaces instrument identity tip", "[instrument][sensei]")
     Document doc;
     auto* chords = doc.project().findTrackByRole(TrackRole::Chords);
     doc.setSelectedTrackId(chords->id);
-    REQUIRE(doc.execute(std::make_unique<AddNoteCommand>(
-        chords->id, chords->clips.front().id, 60, 0.0, 1.0, 0.8f)));
-    REQUIRE(doc.execute(std::make_unique<AddNoteCommand>(
-        chords->id, chords->clips.front().id, 64, 0.5, 1.0, 0.8f)));
-    REQUIRE(doc.execute(std::make_unique<AddNoteCommand>(
-        chords->id, chords->clips.front().id, 67, 1.0, 1.0, 0.8f)));
-    REQUIRE(doc.execute(std::make_unique<AddNoteCommand>(
-        chords->id, chords->clips.front().id, 60, 2.0, 1.0, 0.8f)));
+    // Non-overlapping pitches so analyzer reaches LoopHasMaterial (not ChordDetected).
+    for (int i = 0; i < 6; ++i)
+        REQUIRE(doc.execute(std::make_unique<AddNoteCommand>(
+            chords->id, chords->clips.front().id, 60 + (i % 4), i * 1.0, 0.5, 0.8f)));
 
     const auto obs = doc.analyze();
     REQUIRE(obs.kind == ObservationKind::InstrumentIdentity);
     REQUIRE(obs.title.find("Warm Keys") != std::string::npos);
+    REQUIRE(obs.advice.find("Warm Keys") != std::string::npos);
 }

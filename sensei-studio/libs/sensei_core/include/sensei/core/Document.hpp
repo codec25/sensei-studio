@@ -305,9 +305,8 @@ public:
         if (const auto* track = project_.findTrack(selectedTrackId_))
         {
             const auto info = instrumentInfo(track->instrumentId);
-            if (obs.kind == ObservationKind::LoopHasMaterial
-                || obs.kind == ObservationKind::FirstIdea
-                || obs.kind == ObservationKind::ChordDetected)
+            // Surface instrument identity when the loop already has established material.
+            if (obs.kind == ObservationKind::LoopHasMaterial)
             {
                 Observation tip;
                 tip.kind = ObservationKind::InstrumentIdentity;

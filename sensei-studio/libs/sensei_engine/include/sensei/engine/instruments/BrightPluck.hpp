@@ -36,7 +36,7 @@ public:
                 break;
             }
         if (voice == nullptr)
-            voice = &voices_[stealIndex_++ % kMaxVoices];
+            voice = &voices_[static_cast<std::size_t>(stealIndex_++ % kMaxVoices)];
 
         voice->active = true;
         voice->midi = midiNote;

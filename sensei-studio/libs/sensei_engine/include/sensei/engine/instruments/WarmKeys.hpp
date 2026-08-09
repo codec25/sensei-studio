@@ -54,12 +54,9 @@ public:
 
     void allNotesOff() noexcept override
     {
+        // Hard clear — used on stop / instrument switch to avoid stuck notes.
         for (auto& v : voices_)
-            if (v.active)
-            {
-                v.releasing = true;
-                v.target = 0.0f;
-            }
+            v = {};
     }
 
     void process(float* left, float* right, int numSamples) noexcept override

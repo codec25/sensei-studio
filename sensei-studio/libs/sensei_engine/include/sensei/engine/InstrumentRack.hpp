@@ -21,8 +21,6 @@ public:
         studioKit_.prepare(sampleRate, maxBlockSize);
     }
 
-    void prepare(double sampleRate) noexcept { prepare(sampleRate, 512); }
-
     void noteOn(sensei::core::InstrumentId id, int midi, float velocity) noexcept
     {
         if (auto* inst = pitched(id))

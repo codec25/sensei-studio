@@ -33,9 +33,10 @@ enum class DrumProgram : std::uint8_t
     {
         case InstrumentId::DeepBass: return SoundProgram::Bass;
         case InstrumentId::BrightPluck: return SoundProgram::Melody;
-        case InstrumentId::WarmKeys:
-        default: return SoundProgram::Chords;
+        case InstrumentId::StudioKitBasic:
+        case InstrumentId::WarmKeys: return SoundProgram::Chords;
     }
+    return SoundProgram::Chords;
 }
 
 // POD note for audio-thread consumption. Fixed-capacity; no heap on audio thread.
