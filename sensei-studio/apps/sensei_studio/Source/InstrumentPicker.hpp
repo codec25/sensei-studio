@@ -2,12 +2,12 @@
 
 #include "sensei/core/Document.hpp"
 #include "sensei/core/commands/InstrumentCommands.hpp"
+#include "ui/Theme.hpp"
 
 #include <juce_gui_basics/juce_gui_basics.h>
 
 #include <functional>
 
-// Minimal beginner instrument picker for the selected track.
 class InstrumentPicker final : public juce::Component
 {
 public:
@@ -15,11 +15,9 @@ public:
 
     InstrumentPicker()
     {
-        label_.setText("INSTRUMENT", juce::dontSendNotification);
-        label_.setColour(juce::Label::textColourId, juce::Colour(0xff9ca6b5));
-        label_.setFont(juce::FontOptions(12.0f));
-        fact_.setColour(juce::Label::textColourId, juce::Colour(0xff6f7a88));
-        fact_.setFont(juce::FontOptions(11.0f));
+        label_.setText("Instrument", juce::dontSendNotification);
+        label_.setFont(juce::FontOptions(12.5f));
+        fact_.setFont(juce::FontOptions(12.0f));
         addAndMakeVisible(label_);
         addAndMakeVisible(combo_);
         addAndMakeVisible(fact_);
@@ -37,6 +35,10 @@ public:
         updating_ = true;
         combo_.clear(juce::dontSendNotification);
         fact_.setText({}, juce::dontSendNotification);
+        const auto& p = studioPalette();
+        label_.setColour(juce::Label::textColourId, p.textMuted);
+        fact_.setColour(juce::Label::textColourId, p.textSecondary);
+
         if (document_ == nullptr)
         {
             updating_ = false;
@@ -51,9 +53,7 @@ public:
         }
 
         if (track->type == sensei::core::TrackType::Drums)
-        {
             addItem(sensei::core::InstrumentId::StudioKitBasic);
-        }
         else
         {
             addItem(sensei::core::InstrumentId::WarmKeys);
@@ -65,20 +65,23 @@ public:
         fact_.setText(sensei::core::instrumentInfo(track->instrumentId).shortFact,
                       juce::dontSendNotification);
         updating_ = false;
+        repaint();
     }
 
     void paint(juce::Graphics& g) override
     {
-        g.fillAll(juce::Colour(0xff171a20));
+        const auto& p = studioPalette();
+        g.setColour(p.bg2);
+        g.fillRoundedRectangle(getLocalBounds().toFloat(), 10.0f);
     }
 
     void resized() override
     {
-        auto area = getLocalBounds().reduced(8, 4);
+        auto area = getLocalBounds().reduced(10, 8);
         label_.setBounds(area.removeFromTop(18));
         combo_.setBounds(area.removeFromTop(28));
         area.removeFromTop(4);
-        fact_.setBounds(area.removeFromTop(32));
+        fact_.setBounds(area.removeFromTop(28));
     }
 
 private:

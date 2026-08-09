@@ -21,24 +21,24 @@ beginner shape (Intro/Main/Variation/Outro) by repeating the 4-bar seed (no
 time-stretch), deterministic variation helpers, whole-song + loop-region playback,
 arrangement view, Sensei arrangement events, tests.
 
-## Milestone E — Sound identity + instrument system (implemented on branch)
+## Milestone E — Sound identity + instrument system (implemented)
 Stable Core instrument/preset IDs, engine Instrument interface, differentiated
 built-ins (Warm Keys / Deep Bass / Bright Pluck / Studio Kit), snapshot routing
 by instrument ID, beginner instrument picker, deterministic Sensei instrument
-tips, tests. No plugins, no sample library, no full UI redesign.
+tips, tests. No plugins, no sample library.
 
-## Milestone F — Native Studio UI/UX redesign (NOT started)
-Major native Studio visual/UX redesign inspired by the clarity and workflow
-quality of professional DAWs such as Ableton Live and Logic Pro, while retaining
-Sensei Studio’s own identity. Do not copy proprietary design or assets.
-
-Milestone F should address: tiny typography, excessive borders/grids, weak
-hierarchy, cramped panels, generic engineering-tool appearance, poor clip
-readability, and lack of a polished musical workspace.
-
-Do not implement Milestone F during E.
+## Milestone F — Studio UI/UX redesign + lighting/theme system (implemented)
+Arrangement-first native workspace (browser / arrangement / Sensei / editor dock),
+resizable arrangement↔editor splitter, readable clips/tracks with role colour and
+mute/solo playback routing, modernized transport, Sensei coach panel redesign,
+original Sensei orb identity mark, and multi-preset lighting themes (Daylight,
+Night Studio, Warm Amber, High Contrast) via ThemeController + StudioLookAndFeel.
+Theme/UI prefs stay outside Project. No Practice Views.
 
 ## Later — Practice Views (NOT started)
 Optional learning layouts inspired by familiar DAW workflows such as Ableton and
 Logic, without copying proprietary assets or trying to replace those DAWs.
 Practice Views are presentation/workflow layers over the same Core project model.
+
+## Milestone G — reserved (NOT started)
+Do not start until F is approved and merged.

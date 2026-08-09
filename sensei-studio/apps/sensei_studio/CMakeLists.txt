@@ -19,11 +19,22 @@ target_sources(sensei_studio
     Source/PianoRoll.hpp
     Source/SenseiPanel.cpp
     Source/SenseiPanel.hpp
-    Source/TrackList.hpp
     Source/ChordHelperPanel.hpp
     Source/DrumGrid.hpp
     Source/ArrangementView.hpp
     Source/InstrumentPicker.hpp
+    Source/BrowserPanel.hpp
+    Source/EditorDock.hpp
+    Source/VerticalSplitter.hpp
+    Source/ui/Theme.hpp
+    Source/ui/Theme.cpp
+    Source/ui/ThemeController.hpp
+    Source/ui/ThemeController.cpp
+)
+
+target_include_directories(sensei_studio
+  PRIVATE
+    Source
 )
 
 target_compile_definitions(sensei_studio
@@ -40,6 +51,7 @@ target_link_libraries(sensei_studio
     sensei::engine
     juce::juce_gui_extra
     juce::juce_audio_utils
+    juce::juce_data_structures
     juce::juce_recommended_config_flags
     juce::juce_recommended_lto_flags
     juce::juce_recommended_warning_flags

@@ -1,41 +1,47 @@
 #include "MainComponent.hpp"
 
+#include "sensei/core/commands/ArrangementCommands.hpp"
+
 MainComponent::MainComponent()
 {
-    setSize(1440, 900);
+    setSize(1480, 920);
     setOpaque(true);
     setWantsKeyboardFocus(true);
 
     brandLabel_.setText("Sensei Studio", juce::dontSendNotification);
-    brandLabel_.setFont(juce::FontOptions(28.0f).withStyle("Bold"));
-    brandLabel_.setColour(juce::Label::textColourId, juce::Colour(0xfff4f5f7));
-    subtitleLabel_.setText("Milestone E — sound identity + instruments", juce::dontSendNotification);
-    subtitleLabel_.setColour(juce::Label::textColourId, juce::Colour(0xff9ca6b5));
-    helpLabel_.setText("Loop → song shape → move/duplicate clips → Play whole song · Sensei never forces",
-                       juce::dontSendNotification);
-    helpLabel_.setColour(juce::Label::textColourId, juce::Colour(0xff9ca6b5));
-    positionLabel_.setColour(juce::Label::textColourId, juce::Colour(0xff9ca6b5));
-    positionLabel_.setJustificationType(juce::Justification::centredRight);
+    brandLabel_.setFont(juce::FontOptions(22.0f).withStyle("Bold"));
+
+    for (int i = 0; i < static_cast<int>(ThemeId::Count); ++i)
+    {
+        const auto id = static_cast<ThemeId>(i);
+        themeBox_.addItem(themeDisplayName(id), i + 1);
+    }
+    themeBox_.setSelectedId(static_cast<int>(themeController_.themeId()) + 1, juce::dontSendNotification);
+    themeBox_.onChange = [this] {
+        const int id = themeBox_.getSelectedId();
+        if (id <= 0)
+            return;
+        themeController_.setTheme(static_cast<ThemeId>(id - 1));
+    };
+
+    themeController_.onThemeChanged = [this] {
+        applyThemeToChrome();
+        refreshAll();
+    };
 
     addAndMakeVisible(brandLabel_);
-    addAndMakeVisible(subtitleLabel_);
-    addAndMakeVisible(helpLabel_);
-    addAndMakeVisible(positionLabel_);
-    addAndMakeVisible(arrangeBtn_);
-    addAndMakeVisible(editBtn_);
+    addAndMakeVisible(themeBox_);
     addAndMakeVisible(transportBar_);
-    addAndMakeVisible(trackList_);
-    addAndMakeVisible(instrumentPicker_);
-    addAndMakeVisible(chordHelper_);
+    addAndMakeVisible(browserPanel_);
     addAndMakeVisible(arrangementView_);
-    addAndMakeVisible(drumGrid_);
-    addAndMakeVisible(pianoRoll_);
+    addAndMakeVisible(splitter_);
+    addAndMakeVisible(editorDock_);
     addAndMakeVisible(senseiPanel_);
 
     audioEngine_.setTransport(&document_.transport());
     audioEngine_.setSnapshotPublisher(&document_.snapshots());
-    if (! audioEngine_.initialise())
-        subtitleLabel_.setText("Milestone D — audio device init failed", juce::dontSendNotification);
+    const bool audioOk = audioEngine_.initialise();
+    transportBar_.setAudioDeviceAvailable(audioOk);
 
     transportBar_.setTransport(&document_.transport());
     transportBar_.onPlay = [this] {
@@ -46,54 +52,62 @@ MainComponent::MainComponent()
         document_.transport().stop();
         audioEngine_.allNotesOff();
         transportBar_.refreshFromTransport();
-        pianoRoll_.setPlayheadBeats(0.0);
+        editorDock_.setPlayheadBeats(0.0);
         arrangementView_.setPlayheadBeats(0.0);
     };
     transportBar_.onBpmChanged = [this](double bpm) {
         document_.setBpm(bpm);
         transportBar_.refreshFromTransport();
     };
+    transportBar_.onToggleLoop = [this] { toggleLoop(); };
 
-    trackList_.setDocument(&document_);
-    trackList_.onSelectionChanged = [this] { refreshAll(); };
-
-    instrumentPicker_.setDocument(&document_);
-    instrumentPicker_.onChanged = [this] {
+    browserPanel_.setDocument(&document_);
+    browserPanel_.setCollapsed(themeController_.browserCollapsed());
+    browserPanel_.onChanged = [this] {
         audioEngine_.allNotesOff();
         handleProjectEdited();
     };
-
-    chordHelper_.setDocument(&document_);
-    chordHelper_.onApplied = [this] { handleProjectEdited(); };
+    browserPanel_.onCollapseToggle = [this] {
+        themeController_.setBrowserCollapsed(! themeController_.browserCollapsed());
+        browserPanel_.setCollapsed(themeController_.browserCollapsed());
+        resized();
+    };
 
     arrangementView_.setDocument(&document_);
     arrangementView_.onEdited = [this] { handleProjectEdited(); };
     arrangementView_.onSelectionChanged = [this] { refreshAll(); };
 
-    drumGrid_.setDocument(&document_);
-    drumGrid_.onEdited = [this] { handleProjectEdited(); };
-
-    pianoRoll_.setDocument(&document_);
-    pianoRoll_.onAuditionNoteOn = [this](int midi, float vel) {
+    editorDock_.setDocument(&document_);
+    editorDock_.onEdited = [this] {
+        audioEngine_.allNotesOff();
+        handleProjectEdited();
+    };
+    editorDock_.onAuditionNoteOn = [this](int midi, float vel) {
         audioEngine_.noteOn(auditionInstrument(), midi, vel);
     };
-    pianoRoll_.onAuditionNoteOff = [this](int midi) {
+    editorDock_.onAuditionNoteOff = [this](int midi) {
         audioEngine_.noteOff(auditionInstrument(), midi);
     };
-    pianoRoll_.onProjectEdited = [this] { handleProjectEdited(); };
 
     senseiPanel_.setDocument(&document_);
+    senseiPanel_.setCollapsed(themeController_.senseiCollapsed());
     senseiPanel_.onChanged = [this] { refreshAll(); };
-
-    arrangeBtn_.onClick = [this] {
-        showArrange_ = true;
-        refreshAll();
-    };
-    editBtn_.onClick = [this] {
-        showArrange_ = false;
-        refreshAll();
+    senseiPanel_.onCollapseToggle = [this] {
+        themeController_.setSenseiCollapsed(! themeController_.senseiCollapsed());
+        senseiPanel_.setCollapsed(themeController_.senseiCollapsed());
+        resized();
     };
 
+    splitter_.onDragDelta = [this](int deltaY) {
+        const int workspaceH = juce::jmax(1, getHeight() - 108);
+        const float current = themeController_.editorHeightFraction();
+        const float editorH = current * (float) workspaceH;
+        const float next = (editorH - (float) deltaY) / (float) workspaceH;
+        themeController_.setEditorHeightFraction(next);
+        resized();
+    };
+
+    applyThemeToChrome();
     refreshAll();
     startTimerHz(30);
 }
@@ -104,12 +118,29 @@ MainComponent::~MainComponent()
     audioEngine_.shutdown();
 }
 
+void MainComponent::applyThemeToChrome()
+{
+    const auto& p = themeController_.palette();
+    brandLabel_.setColour(juce::Label::textColourId, p.textPrimary);
+    themeBox_.setSelectedId(static_cast<int>(themeController_.themeId()) + 1, juce::dontSendNotification);
+    transportBar_.applyThemeColours();
+    repaint();
+}
+
+void MainComponent::toggleLoop()
+{
+    const auto& loop = document_.project().loop();
+    document_.execute(std::make_unique<sensei::core::SetLoopRegionCommand>(
+        loop.startBeat, loop.lengthBeats, ! loop.enabled));
+    handleProjectEdited();
+}
+
 sensei::core::InstrumentId MainComponent::auditionInstrument() const
 {
     if (const auto* t = document_.project().findTrack(document_.selectedTrackId()))
     {
         if (t->type == sensei::core::TrackType::Drums)
-            return sensei::core::InstrumentId::WarmKeys; // pitched audition N/A on drums
+            return sensei::core::InstrumentId::WarmKeys;
         if (sensei::core::isValidInstrumentId(t->instrumentId)
             && ! sensei::core::instrumentInfo(t->instrumentId).isDrumKit)
             return t->instrumentId;
@@ -120,19 +151,11 @@ sensei::core::InstrumentId MainComponent::auditionInstrument() const
 
 void MainComponent::refreshAll()
 {
-    trackList_.rebuild();
-    instrumentPicker_.refresh();
-    pianoRoll_.repaint();
-    drumGrid_.repaint();
+    browserPanel_.setDocument(&document_);
+    editorDock_.refresh();
     arrangementView_.repaint();
     senseiPanel_.refresh(true);
-
-    const auto* track = document_.project().findTrack(document_.selectedTrackId());
-    const bool drums = track != nullptr && track->type == sensei::core::TrackType::Drums;
-    arrangementView_.setVisible(showArrange_);
-    chordHelper_.setVisible(! showArrange_ && ! drums);
-    pianoRoll_.setVisible(! showArrange_ && ! drums);
-    drumGrid_.setVisible(! showArrange_ && drums);
+    transportBar_.refreshFromTransport();
     resized();
 }
 
@@ -144,53 +167,40 @@ void MainComponent::handleProjectEdited()
 
 void MainComponent::paint(juce::Graphics& g)
 {
-    g.fillAll(juce::Colour(0xff0f1115));
-    g.setColour(juce::Colour(0x14d5ff5c));
-    g.fillRect(getLocalBounds().removeFromTop(72));
-    g.setColour(juce::Colour(0xffd5ff5c));
-    g.fillRoundedRectangle(16.0f, 18.0f, 36.0f, 36.0f, 10.0f);
-    g.setColour(juce::Colours::black);
-    g.setFont(juce::FontOptions(20.0f).withStyle("Bold"));
-    g.drawText("S", juce::Rectangle<int>(16, 18, 36, 36), juce::Justification::centred);
+    const auto& p = themeController_.palette();
+    g.fillAll(p.bg0);
+
+    juce::ColourGradient header(p.accentSoft, 0.0f, 0.0f,
+                                juce::Colours::transparentBlack, 0.0f, 72.0f, false);
+    g.setGradientFill(header);
+    g.fillRect(0, 0, getWidth(), 72);
+
+    drawSenseiOrb(g, { 16.0f, 14.0f, 32.0f, 32.0f }, p, 0.75f);
 }
 
 void MainComponent::resized()
 {
     auto area = getLocalBounds();
-    auto top = area.removeFromTop(72).reduced(64, 12);
-    brandLabel_.setBounds(top.removeFromTop(32));
-    subtitleLabel_.setBounds(top);
+    auto top = area.removeFromTop(56).reduced(56, 8);
+    brandLabel_.setBounds(top.removeFromLeft(220));
+    themeBox_.setBounds(top.removeFromRight(160).reduced(0, 4));
+    top.removeFromRight(12);
+    transportBar_.setBounds(top);
 
-    transportBar_.setBounds(area.removeFromBottom(58));
-    senseiPanel_.setBounds(area.removeFromRight(340));
-    auto left = area.removeFromLeft(160);
-    trackList_.setBounds(left.removeFromTop(left.getHeight() - 110));
-    instrumentPicker_.setBounds(left);
+    const int browserW = themeController_.browserCollapsed() ? 44 : 220;
+    const int senseiW = themeController_.senseiCollapsed() ? 44 : 320;
+    browserPanel_.setBounds(area.removeFromLeft(browserW));
+    senseiPanel_.setBounds(area.removeFromRight(senseiW));
 
-    auto center = area.reduced(10);
-    helpLabel_.setBounds(center.removeFromTop(20));
-    auto meta = center.removeFromTop(24);
-    positionLabel_.setBounds(meta.removeFromRight(meta.getWidth() / 2));
-    arrangeBtn_.setBounds(meta.removeFromLeft(90).reduced(2));
-    editBtn_.setBounds(meta.removeFromLeft(90).reduced(2));
-    center.removeFromTop(6);
+    constexpr int splitterH = 10;
+    const int workspaceH = juce::jmax(180, area.getHeight());
+    int editorH = juce::roundToInt(themeController_.editorHeightFraction() * (float) workspaceH);
+    editorH = juce::jlimit(120, workspaceH - 160, editorH);
+    const int arrangeH = workspaceH - editorH - splitterH;
 
-    if (showArrange_)
-    {
-        arrangementView_.setBounds(center);
-    }
-    else
-    {
-        if (chordHelper_.isVisible())
-        {
-            chordHelper_.setBounds(center.removeFromTop(160));
-            center.removeFromTop(8);
-        }
-        if (drumGrid_.isVisible())
-            drumGrid_.setBounds(center);
-        else
-            pianoRoll_.setBounds(center);
-    }
+    arrangementView_.setBounds(area.removeFromTop(arrangeH));
+    splitter_.setBounds(area.removeFromTop(splitterH));
+    editorDock_.setBounds(area);
 }
 
 bool MainComponent::keyPressed(const juce::KeyPress& key)
@@ -214,20 +224,17 @@ bool MainComponent::keyPressed(const juce::KeyPress& key)
             return true;
         }
     }
-    if (showArrange_ && arrangementView_.keyPressed(key))
+    if (arrangementView_.keyPressed(key))
         return true;
-    return pianoRoll_.keyPressed(key);
+    return editorDock_.keyPressed(key);
 }
 
 void MainComponent::timerCallback()
 {
-    transportBar_.refreshFromTransport();
     const auto beats = document_.transport().positionBeats();
-    positionLabel_.setText("Pos " + juce::String(beats, 2) + " / "
-                               + juce::String(document_.project().songLengthBeats(), 0)
-                               + " · notes " + juce::String((int) document_.project().totalNoteCount())
-                               + " · drums " + juce::String((int) document_.project().totalDrumHitCount()),
-                           juce::dontSendNotification);
-    pianoRoll_.setPlayheadBeats(beats);
+    transportBar_.setPositionBeats(beats, document_.project().songLengthBeats(),
+                                   document_.project().loop().enabled);
+    transportBar_.refreshFromTransport();
+    editorDock_.setPlayheadBeats(beats);
     arrangementView_.setPlayheadBeats(beats);
 }

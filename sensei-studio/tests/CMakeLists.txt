@@ -14,18 +14,23 @@ add_executable(sensei_core_tests
   core/DrumBassLessonTests.cpp
   core/ArrangementTests.cpp
   core/InstrumentTests.cpp
+  core/MuteSoloTests.cpp
+  ui/ThemeTests.cpp
+  ${CMAKE_SOURCE_DIR}/apps/sensei_studio/Source/ui/Theme.cpp
   engine/MidiEventBufferTests.cpp
 )
 
 target_include_directories(sensei_core_tests
   PRIVATE
     ${CMAKE_SOURCE_DIR}/libs/sensei_engine/include
+    ${CMAKE_SOURCE_DIR}/apps/sensei_studio/Source
 )
 
 target_link_libraries(sensei_core_tests
   PRIVATE
     sensei::core
     sensei::engine
+    juce::juce_gui_basics
     Catch2::Catch2WithMain
 )
 

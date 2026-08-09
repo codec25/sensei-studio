@@ -1,13 +1,12 @@
 #pragma once
 
 #include "ArrangementView.hpp"
-#include "ChordHelperPanel.hpp"
-#include "DrumGrid.hpp"
-#include "InstrumentPicker.hpp"
-#include "PianoRoll.hpp"
+#include "BrowserPanel.hpp"
+#include "EditorDock.hpp"
 #include "SenseiPanel.hpp"
-#include "TrackList.hpp"
 #include "TransportBar.hpp"
+#include "VerticalSplitter.hpp"
+#include "ui/ThemeController.hpp"
 
 #include "sensei/core/Document.hpp"
 #include "sensei/engine/AudioEngine.hpp"
@@ -29,25 +28,20 @@ private:
     void timerCallback() override;
     void refreshAll();
     void handleProjectEdited();
+    void applyThemeToChrome();
+    void toggleLoop();
     sensei::core::InstrumentId auditionInstrument() const;
 
+    ThemeController themeController_;
     sensei::core::Document document_;
     sensei::engine::AudioEngine audioEngine_;
 
     juce::Label brandLabel_;
-    juce::Label subtitleLabel_;
-    juce::Label helpLabel_;
-    juce::Label positionLabel_;
-    juce::TextButton arrangeBtn_ { "Arrange" };
-    juce::TextButton editBtn_ { "Edit clip" };
-    bool showArrange_ = true;
-
+    juce::ComboBox themeBox_;
     TransportBar transportBar_;
-    TrackList trackList_;
-    InstrumentPicker instrumentPicker_;
-    ChordHelperPanel chordHelper_;
+    BrowserPanel browserPanel_;
     ArrangementView arrangementView_;
-    DrumGrid drumGrid_;
-    PianoRoll pianoRoll_;
+    VerticalSplitter splitter_;
+    EditorDock editorDock_;
     SenseiPanel senseiPanel_;
 };

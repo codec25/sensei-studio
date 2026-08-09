@@ -2,6 +2,7 @@
 
 #include "sensei/core/Document.hpp"
 #include "sensei/core/harmony/Progressions.hpp"
+#include "ui/Theme.hpp"
 
 #include <juce_gui_basics/juce_gui_basics.h>
 
@@ -26,7 +27,6 @@ public:
         applyBtn_.setButtonText("Insert progression");
         applyBtn_.onClick = [this] { apply(); };
 
-        explain_.setColour(juce::Label::textColourId, juce::Colour(0xffb7c0cc));
         explain_.setJustificationType(juce::Justification::topLeft);
         updateExplain();
 
@@ -39,21 +39,23 @@ public:
         addAndMakeVisible(explain_);
         addAndMakeVisible(title_);
         title_.setText("Chord helper", juce::dontSendNotification);
-        title_.setFont(juce::FontOptions(16.0f).withStyle("Bold"));
+        title_.setFont(juce::FontOptions(15.0f).withStyle("Bold"));
     }
 
     void setDocument(sensei::core::Document* document) { document_ = document; }
 
     void paint(juce::Graphics& g) override
     {
-        g.fillAll(juce::Colour(0xff11151a));
-        g.setColour(juce::Colour(0xff2a303a));
-        g.drawRect(getLocalBounds(), 1);
+        const auto& p = studioPalette();
+        explain_.setColour(juce::Label::textColourId, p.textSecondary);
+        title_.setColour(juce::Label::textColourId, p.textPrimary);
+        g.setColour(p.bg2);
+        g.fillRoundedRectangle(getLocalBounds().toFloat(), 10.0f);
     }
 
     void resized() override
     {
-        auto a = getLocalBounds().reduced(10);
+        auto a = getLocalBounds().reduced(12, 10);
         title_.setBounds(a.removeFromTop(22));
         a.removeFromTop(6);
         auto row = a.removeFromTop(28);
@@ -63,7 +65,7 @@ public:
         a.removeFromTop(8);
         progBox_.setBounds(a.removeFromTop(28));
         a.removeFromTop(8);
-        applyBtn_.setBounds(a.removeFromTop(32));
+        applyBtn_.setBounds(a.removeFromTop(32).removeFromLeft(180));
         a.removeFromTop(8);
         explain_.setBounds(a);
     }
