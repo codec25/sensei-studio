@@ -9,7 +9,8 @@
 
 #include <functional>
 
-// Shallow beginner browser — built-in instruments / kit / lesson actions only.
+// Focused creation browser. It exposes only things that work in the current build;
+// future libraries stay out of the primary workflow until they are usable.
 class BrowserPanel final : public juce::Component
 {
 public:
@@ -18,19 +19,20 @@ public:
 
     BrowserPanel()
     {
-        title_.setText("Browser", juce::dontSendNotification);
-        title_.setFont(juce::FontOptions(16.0f).withStyle("Bold"));
+        title_.setText("Create", juce::dontSendNotification);
+        title_.setFont(juce::FontOptions(17.0f).withStyle("Bold"));
         collapseBtn_.setButtonText("«");
-        collapseBtn_.setTooltip("Collapse browser");
+        collapseBtn_.setTooltip("Hide Create browser");
         collapseBtn_.onClick = [this] {
             if (onCollapseToggle)
                 onCollapseToggle();
         };
 
+        // F.1: don't advertise an empty Sounds library. Every primary category
+        // must lead to a useful action now.
         category_.addItem("Instruments", 1);
         category_.addItem("Drums", 2);
-        category_.addItem("Sounds", 3);
-        category_.addItem("Lessons", 4);
+        category_.addItem("Guided", 3);
         category_.setSelectedId(1, juce::dontSendNotification);
         category_.onChange = [this] { rebuildItems(); };
 
@@ -41,7 +43,7 @@ public:
         addAndMakeVisible(list_);
         addAndMakeVisible(hint_);
         hint_.setJustificationType(juce::Justification::topLeft);
-        list_.setRowHeight(28);
+        list_.setRowHeight(44); // touch-friendly and easier to scan
         list_.setModel(&model_);
         rebuildItems();
     }
@@ -62,8 +64,8 @@ public:
             expandBtn_.setVisible(true);
             if (! expandBtn_.getParentComponent())
                 addAndMakeVisible(expandBtn_);
-            expandBtn_.setButtonText("›");
-            expandBtn_.setTooltip("Expand browser");
+            expandBtn_.setButtonText("+");
+            expandBtn_.setTooltip("Show Create browser");
             expandBtn_.onClick = [this] {
                 if (onCollapseToggle)
                     onCollapseToggle();
@@ -83,13 +85,14 @@ public:
     {
         const auto& p = studioPalette();
         g.fillAll(p.bg1);
-        g.setColour(p.borderSoft.withAlpha(0.65f));
+        g.setColour(p.borderSoft.withAlpha(0.55f));
         g.drawLine((float) getWidth() - 0.5f, 0.0f, (float) getWidth() - 0.5f, (float) getHeight());
         if (collapsed_)
         {
             g.setColour(p.textMuted);
-            g.setFont(juce::FontOptions(11.0f));
-            g.drawText("B", getLocalBounds().withTrimmedTop(36), juce::Justification::centredTop, false);
+            g.setFont(juce::FontOptions(10.5f).withStyle("Bold"));
+            g.drawFittedText("CREATE", getLocalBounds().withTrimmedTop(42).reduced(3),
+                             juce::Justification::centredTop, 1, 0.7f);
         }
     }
 
@@ -97,18 +100,18 @@ public:
     {
         if (collapsed_)
         {
-            expandBtn_.setBounds(getLocalBounds().reduced(4).removeFromTop(28));
+            expandBtn_.setBounds(getLocalBounds().reduced(5).removeFromTop(34));
             return;
         }
-        auto area = getLocalBounds().reduced(12, 10);
-        auto top = area.removeFromTop(28);
-        title_.setBounds(top.removeFromLeft(top.getWidth() - 32));
-        collapseBtn_.setBounds(top);
-        area.removeFromTop(8);
-        category_.setBounds(area.removeFromTop(30));
-        area.removeFromTop(8);
-        hint_.setBounds(area.removeFromBottom(52));
-        area.removeFromBottom(6);
+        auto area = getLocalBounds().reduced(14, 12);
+        auto top = area.removeFromTop(34);
+        title_.setBounds(top.removeFromLeft(juce::jmax(0, top.getWidth() - 38)));
+        collapseBtn_.setBounds(top.reduced(2));
+        area.removeFromTop(10);
+        category_.setBounds(area.removeFromTop(36));
+        area.removeFromTop(10);
+        hint_.setBounds(area.removeFromBottom(48));
+        area.removeFromBottom(8);
         list_.setBounds(area);
     }
 
@@ -129,11 +132,17 @@ private:
             if (owner == nullptr || ! juce::isPositiveAndBelow(row, (int) owner->items_.size()))
                 return;
             const auto& p = studioPalette();
+            auto r = juce::Rectangle<float>(4.0f, 3.0f, (float) w - 8.0f, (float) h - 6.0f);
             if (selected)
-                g.fillAll(p.accentSoft);
+            {
+                g.setColour(p.accentSoft);
+                g.fillRoundedRectangle(r, 7.0f);
+                g.setColour(p.accent.withAlpha(0.65f));
+                g.drawRoundedRectangle(r, 7.0f, 1.0f);
+            }
             g.setColour(p.textPrimary);
-            g.setFont(juce::FontOptions(13.5f));
-            g.drawText(owner->items_[(size_t) row].label, 8, 0, w - 12, h,
+            g.setFont(juce::FontOptions(14.0f));
+            g.drawText(owner->items_[(size_t) row].label, 14, 0, w - 20, h,
                        juce::Justification::centredLeft, true);
         }
         void listBoxItemClicked(int row, const juce::MouseEvent&) override
@@ -151,46 +160,40 @@ private:
         hint_.setColour(juce::Label::textColourId, studioPalette().textMuted);
 
         const int cat = category_.getSelectedId();
-        if (cat == 1) // Instruments
+        if (cat == 1)
         {
-            hint_.setText("Built-in pitched instruments for the selected MIDI track.",
+            hint_.setText("Choose a sound for the selected musical track.",
                           juce::dontSendNotification);
             addInstrument(sensei::core::InstrumentId::WarmKeys);
             addInstrument(sensei::core::InstrumentId::DeepBass);
             addInstrument(sensei::core::InstrumentId::BrightPluck);
         }
-        else if (cat == 2) // Drums
+        else if (cat == 2)
         {
-            hint_.setText("Current drum kit for the Drums track.", juce::dontSendNotification);
+            hint_.setText("Choose the kit, then shape the groove below.", juce::dontSendNotification);
             addInstrument(sensei::core::InstrumentId::StudioKitBasic);
         }
-        else if (cat == 3) // Sounds
+        else
         {
-            hint_.setText("Sounds library coming later — no samples in this build.",
+            hint_.setText("Useful starting moves. Sensei explains the result in your song.",
                           juce::dontSendNotification);
-            items_.push_back({ "No sample library yet", {} });
-        }
-        else // Lessons
-        {
-            hint_.setText("Deterministic Sensei helpers — same Core lesson flow.",
-                          juce::dontSendNotification);
-            items_.push_back({ "Focus Chords track", [this] {
+            items_.push_back({ "Start with chords", [this] {
                 if (document_ == nullptr) return;
                 if (auto* t = document_->project().findTrackByRole(sensei::core::TrackRole::Chords))
                     document_->setSelectedTrackId(t->id);
                 if (onChanged) onChanged();
             } });
-            items_.push_back({ "Add starter drums", [this] {
+            items_.push_back({ "Build a starter beat", [this] {
                 if (document_ == nullptr) return;
                 document_->applyStarterDrums("basic-rock");
                 if (onChanged) onChanged();
             } });
-            items_.push_back({ "Add root-note bass", [this] {
+            items_.push_back({ "Add bass from the chords", [this] {
                 if (document_ == nullptr) return;
                 document_->applyRootBass();
                 if (onChanged) onChanged();
             } });
-            items_.push_back({ "Turn loop into a song", [this] {
+            items_.push_back({ "Shape this loop into a song", [this] {
                 if (document_ == nullptr) return;
                 document_->applySongShape();
                 if (onChanged) onChanged();
