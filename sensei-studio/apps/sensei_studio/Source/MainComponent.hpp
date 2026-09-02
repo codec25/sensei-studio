@@ -6,6 +6,7 @@
 #include "SenseiPanel.hpp"
 #include "TransportBar.hpp"
 #include "VerticalSplitter.hpp"
+#include "ViewControlBar.hpp"
 #include "ui/ThemeController.hpp"
 
 #include "sensei/core/Document.hpp"
@@ -30,6 +31,10 @@ private:
     void handleProjectEdited();
     void applyThemeToChrome();
     void toggleLoop();
+    void toggleCreateView();
+    void toggleEditView();
+    void toggleSenseiView();
+    void syncViewControls();
     sensei::core::InstrumentId auditionInstrument() const;
 
     ThemeController themeController_;
@@ -44,4 +49,7 @@ private:
     VerticalSplitter splitter_;
     EditorDock editorDock_;
     SenseiPanel senseiPanel_;
+    ViewControlBar viewControlBar_;
+
+    bool editorOpen_ = true;
 };
