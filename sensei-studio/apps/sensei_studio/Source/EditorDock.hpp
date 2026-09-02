@@ -13,7 +13,8 @@
 
 #include <functional>
 
-// Context-sensitive bottom editor: instrument strip + piano roll / drum grid.
+// Context-sensitive bottom editor: the selected musical object decides what the
+// producer sees. Supporting tools must never steal space from the actual editor.
 class EditorDock final : public juce::Component
 {
 public:
@@ -29,7 +30,10 @@ public:
         addAndMakeVisible(drumGrid_);
         addAndMakeVisible(keyboard_);
         addAndMakeVisible(title_);
+        addAndMakeVisible(contextLabel_);
         title_.setFont(juce::FontOptions(15.0f).withStyle("Bold"));
+        contextLabel_.setFont(juce::FontOptions(12.0f));
+        contextLabel_.setJustificationType(juce::Justification::centredRight);
 
         instrumentPicker_.onChanged = [this] {
             if (onEdited)
@@ -105,11 +109,16 @@ public:
             const auto info = sensei::core::instrumentInfo(track->instrumentId);
             title_.setText(juce::String(track->name) + "  ·  " + info.displayName,
                            juce::dontSendNotification);
+            contextLabel_.setText(drums ? "Beat editor"
+                                        : (chords ? "Chords + notes" : "Note editor"),
+                                  juce::dontSendNotification);
         }
         else
         {
             title_.setText("Editor", juce::dontSendNotification);
+            contextLabel_.setText("Select a track to edit", juce::dontSendNotification);
         }
+        contextLabel_.setColour(juce::Label::textColourId, studioPalette().textMuted);
         resized();
         repaint();
     }
@@ -118,30 +127,42 @@ public:
     {
         const auto& p = studioPalette();
         g.fillAll(p.bg1);
-        g.setColour(p.borderSoft.withAlpha(0.5f));
+        g.setColour(p.borderSoft.withAlpha(0.55f));
         g.drawLine(0.0f, 0.5f, (float) getWidth(), 0.5f);
-        g.setColour(p.accentSoft);
-        g.fillRect(0, 0, 3, getHeight());
+
+        // A thin role-neutral focus line ties the editor to the active context
+        // without turning the whole dock into another card.
+        g.setColour(p.accent.withAlpha(0.55f));
+        g.fillRect(0, 0, 2, getHeight());
     }
 
     void resized() override
     {
         auto area = getLocalBounds().reduced(12, 8);
-        title_.setBounds(area.removeFromTop(22));
+        auto heading = area.removeFromTop(24);
+        contextLabel_.setBounds(heading.removeFromRight(juce::jmin(150, heading.getWidth() / 3)));
+        title_.setBounds(heading);
         area.removeFromTop(6);
 
-        auto strip = area.removeFromTop(72);
-        instrumentPicker_.setBounds(strip.removeFromLeft(juce::jmin(280, strip.getWidth() / 3)));
+        // Keep the playable keyboard available when there is room, but let the
+        // actual note/beat editor win on shorter docks.
+        const bool roomy = area.getHeight() >= 190;
+        const int stripH = roomy ? 64 : 48;
+        auto strip = area.removeFromTop(juce::jmin(stripH, area.getHeight()));
+        instrumentPicker_.setBounds(strip.removeFromLeft(juce::jmin(260, juce::jmax(180, strip.getWidth() / 3))));
         if (keyboard_.isVisible())
         {
             strip.removeFromLeft(8);
             keyboard_.setBounds(strip);
         }
 
-        area.removeFromTop(8);
+        area.removeFromTop(roomy ? 8 : 4);
         if (chordHelper_.isVisible())
         {
-            chordHelper_.setBounds(area.removeFromTop(juce::jmin(140, area.getHeight() / 3)));
+            // Chord guidance supports the note editor; it no longer consumes a
+            // third of the dock by default.
+            const int helperH = juce::jmin(roomy ? 96 : 72, juce::jmax(0, area.getHeight() / 3));
+            chordHelper_.setBounds(area.removeFromTop(helperH));
             area.removeFromTop(6);
         }
 
@@ -154,6 +175,7 @@ public:
 private:
     sensei::core::Document* document_ = nullptr;
     juce::Label title_;
+    juce::Label contextLabel_;
     InstrumentPicker instrumentPicker_;
     ChordHelperPanel chordHelper_;
     PianoRoll pianoRoll_;
