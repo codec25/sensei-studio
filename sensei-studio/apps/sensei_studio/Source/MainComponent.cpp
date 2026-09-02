@@ -140,7 +140,7 @@ sensei::core::InstrumentId MainComponent::auditionInstrument() const
     if (const auto* t = document_.project().findTrack(document_.selectedTrackId()))
     {
         if (t->type == sensei::core::TrackType::Drums)
-            return sensei::core::InstrumentId::WarmKeys;
+            return sensei::core::InstrumentId::StudioKitBasic;
         if (sensei::core::isValidInstrumentId(t->instrumentId)
             && ! sensei::core::instrumentInfo(t->instrumentId).isDrumKit)
             return t->instrumentId;
@@ -187,8 +187,18 @@ void MainComponent::resized()
     top.removeFromRight(12);
     transportBar_.setBounds(top);
 
-    const int browserW = themeController_.browserCollapsed() ? 44 : 220;
-    const int senseiW = themeController_.senseiCollapsed() ? 44 : 320;
+    // F.1 productivity rule: the song owns the screen. Supporting panels collapse
+    // automatically on tighter layouts, while the user's saved desktop choices
+    // return as soon as enough horizontal space is available again.
+    const bool compact = getWidth() < 1180;
+    const bool focused = getWidth() < 1380;
+    const bool browserCollapsed = compact || themeController_.browserCollapsed();
+    const bool senseiCollapsed = focused || themeController_.senseiCollapsed();
+    browserPanel_.setCollapsed(browserCollapsed);
+    senseiPanel_.setCollapsed(senseiCollapsed);
+
+    const int browserW = browserCollapsed ? 44 : juce::jlimit(200, 236, getWidth() / 7);
+    const int senseiW = senseiCollapsed ? 44 : juce::jlimit(280, 320, getWidth() / 5);
     browserPanel_.setBounds(area.removeFromLeft(browserW));
     senseiPanel_.setBounds(area.removeFromRight(senseiW));
 
