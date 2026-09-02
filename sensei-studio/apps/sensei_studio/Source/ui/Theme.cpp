@@ -5,111 +5,116 @@ namespace {
 StudioPalette makeDaylight() noexcept
 {
     StudioPalette p;
-    p.bg0 = juce::Colour(0xffe8ecf1);
-    p.bg1 = juce::Colour(0xfff4f6f8);
+    // F.1 flagship: bright neutral canvas, clean elevated work surfaces and
+    // restrained colour. The arrangement should read before the chrome.
+    p.bg0 = juce::Colour(0xfff3f5f7);
+    p.bg1 = juce::Colour(0xfff8f9fb);
     p.bg2 = juce::Colour(0xffffffff);
-    p.panelSoft = juce::Colour(0xffdde3ea);
-    p.textPrimary = juce::Colour(0xff1a2230);
-    p.textSecondary = juce::Colour(0xff3d4a5c);
-    p.textMuted = juce::Colour(0xff6b7788);
-    p.accent = juce::Colour(0xff6f9f1a);
-    p.accentSoft = juce::Colour(0x336f9f1a);
-    p.playhead = juce::Colour(0xffd64545);
-    p.borderSoft = juce::Colour(0xffc5ced8);
-    p.gridMajor = juce::Colour(0xffb8c2ce);
-    p.gridMinor = juce::Colour(0xffd5dde6);
-    p.clipText = juce::Colour(0xff121820);
-    p.roleChords = juce::Colour(0xff3d7dd6);
-    p.roleBass = juce::Colour(0xffc97a2c);
-    p.roleDrums = juce::Colour(0xff6f9f1a);
-    p.roleMelody = juce::Colour(0xff8b5cb8);
-    p.senseiGlow = juce::Colour(0x556f9f1a);
-    p.transportBg = juce::Colour(0xffeef1f5);
-    p.danger = juce::Colour(0xffc0392b);
-    p.selectedOutline = juce::Colour(0xff1a2230);
+    p.panelSoft = juce::Colour(0xffedf0f3);
+    p.textPrimary = juce::Colour(0xff111820);
+    p.textSecondary = juce::Colour(0xff394553);
+    p.textMuted = juce::Colour(0xff687482);
+    p.accent = juce::Colour(0xff6f981c);
+    p.accentSoft = juce::Colour(0x246f981c);
+    p.playhead = juce::Colour(0xffd33d49);
+    p.borderSoft = juce::Colour(0xffd9dee5);
+    p.gridMajor = juce::Colour(0xffcbd2da);
+    p.gridMinor = juce::Colour(0xffe7eaee);
+    p.clipText = juce::Colour(0xff10161d);
+    p.roleChords = juce::Colour(0xff3977c9);
+    p.roleBass = juce::Colour(0xffbd7128);
+    p.roleDrums = juce::Colour(0xff70981d);
+    p.roleMelody = juce::Colour(0xff8254b2);
+    p.senseiGlow = juce::Colour(0x426f981c);
+    p.transportBg = juce::Colour(0xfffbfcfd);
+    p.danger = juce::Colour(0xffbd3540);
+    p.selectedOutline = juce::Colour(0xff17212b);
     return p;
 }
 
 StudioPalette makeNightStudio() noexcept
 {
     StudioPalette p;
-    p.bg0 = juce::Colour(0xff0f1115);
-    p.bg1 = juce::Colour(0xff171a20);
-    p.bg2 = juce::Colour(0xff1e232b);
-    p.panelSoft = juce::Colour(0xff222832);
-    p.textPrimary = juce::Colour(0xfff0f2f5);
-    p.textSecondary = juce::Colour(0xffb7c0cc);
-    p.textMuted = juce::Colour(0xff7a8492);
-    p.accent = juce::Colour(0xffd5ff5c);
-    p.accentSoft = juce::Colour(0x22d5ff5c);
-    p.playhead = juce::Colour(0xffff6b6b);
-    p.borderSoft = juce::Colour(0xff2a303a);
-    p.gridMajor = juce::Colour(0xff3a4452);
-    p.gridMinor = juce::Colour(0xff272d35);
-    p.clipText = juce::Colour(0xff0f1115);
-    p.roleChords = juce::Colour(0xff6ea8fe);
-    p.roleBass = juce::Colour(0xfff0a35e);
-    p.roleDrums = juce::Colour(0xffd5ff5c);
-    p.roleMelody = juce::Colour(0xffc792ea);
-    p.senseiGlow = juce::Colour(0x44d5ff5c);
-    p.transportBg = juce::Colour(0xff12151a);
-    p.danger = juce::Colour(0xffff6b6b);
-    p.selectedOutline = juce::Colour(0xffffffff);
+    p.bg0 = juce::Colour(0xff101318);
+    p.bg1 = juce::Colour(0xff171b21);
+    p.bg2 = juce::Colour(0xff20252d);
+    p.panelSoft = juce::Colour(0xff272d36);
+    p.textPrimary = juce::Colour(0xfff4f6f8);
+    p.textSecondary = juce::Colour(0xffc0c7d0);
+    p.textMuted = juce::Colour(0xff89939f);
+    p.accent = juce::Colour(0xffcdea58);
+    p.accentSoft = juce::Colour(0x24cdea58);
+    p.playhead = juce::Colour(0xffff686f);
+    p.borderSoft = juce::Colour(0xff303741);
+    p.gridMajor = juce::Colour(0xff414b58);
+    p.gridMinor = juce::Colour(0xff2a3038);
+    p.clipText = juce::Colour(0xff101318);
+    p.roleChords = juce::Colour(0xff70a8ee);
+    p.roleBass = juce::Colour(0xffeda05d);
+    p.roleDrums = juce::Colour(0xffcdea58);
+    p.roleMelody = juce::Colour(0xffbd8ce1);
+    p.senseiGlow = juce::Colour(0x40cdea58);
+    p.transportBg = juce::Colour(0xff14181e);
+    p.danger = juce::Colour(0xffff686f);
+    p.selectedOutline = juce::Colour(0xfff7f9fb);
     return p;
 }
 
 StudioPalette makeWarmAmber() noexcept
 {
     StudioPalette p;
-    p.bg0 = juce::Colour(0xff1a1410);
-    p.bg1 = juce::Colour(0xff221c16);
-    p.bg2 = juce::Colour(0xff2a221a);
-    p.panelSoft = juce::Colour(0xff332a20);
-    p.textPrimary = juce::Colour(0xfff3e6d4);
-    p.textSecondary = juce::Colour(0xffcbb8a0);
-    p.textMuted = juce::Colour(0xff8f7d68);
-    p.accent = juce::Colour(0xffe0b35a);
-    p.accentSoft = juce::Colour(0x33e0b35a);
-    p.playhead = juce::Colour(0xffff8a5c);
-    p.borderSoft = juce::Colour(0xff3d3228);
-    p.gridMajor = juce::Colour(0xff4a3d30);
-    p.gridMinor = juce::Colour(0xff302820);
-    p.clipText = juce::Colour(0xff1a1410);
-    p.roleChords = juce::Colour(0xff7aa6d9);
-    p.roleBass = juce::Colour(0xffe09a4a);
-    p.roleDrums = juce::Colour(0xffc9c05a);
-    p.roleMelody = juce::Colour(0xffc49ad9);
-    p.senseiGlow = juce::Colour(0x55e0b35a);
-    p.transportBg = juce::Colour(0xff1c1612);
-    p.danger = juce::Colour(0xffff8a5c);
-    p.selectedOutline = juce::Colour(0xfff3e6d4);
+    // Warm, not brown: charcoal-neutral surfaces with an amber atmosphere.
+    p.bg0 = juce::Colour(0xff181613);
+    p.bg1 = juce::Colour(0xff201d19);
+    p.bg2 = juce::Colour(0xff29251f);
+    p.panelSoft = juce::Colour(0xff322d26);
+    p.textPrimary = juce::Colour(0xfff5eadb);
+    p.textSecondary = juce::Colour(0xffd2c1aa);
+    p.textMuted = juce::Colour(0xff9b8b77);
+    p.accent = juce::Colour(0xffe0b45e);
+    p.accentSoft = juce::Colour(0x2ee0b45e);
+    p.playhead = juce::Colour(0xffff8660);
+    p.borderSoft = juce::Colour(0xff40392f);
+    p.gridMajor = juce::Colour(0xff51483b);
+    p.gridMinor = juce::Colour(0xff302b25);
+    p.clipText = juce::Colour(0xff181613);
+    p.roleChords = juce::Colour(0xff7fa9d5);
+    p.roleBass = juce::Colour(0xffe39b4d);
+    p.roleDrums = juce::Colour(0xffc8bd62);
+    p.roleMelody = juce::Colour(0xffc29ad6);
+    p.senseiGlow = juce::Colour(0x4ee0b45e);
+    p.transportBg = juce::Colour(0xff1c1916);
+    p.danger = juce::Colour(0xffff8660);
+    p.selectedOutline = juce::Colour(0xfff5eadb);
     return p;
 }
 
 StudioPalette makeHighContrast() noexcept
 {
     StudioPalette p;
+    // Intentionally designed accessibility theme: maximum separation without
+    // making every surface compete for attention.
     p.bg0 = juce::Colour(0xff000000);
-    p.bg1 = juce::Colour(0xff0a0a0a);
-    p.bg2 = juce::Colour(0xff141414);
-    p.panelSoft = juce::Colour(0xff1e1e1e);
+    p.bg1 = juce::Colour(0xff090909);
+    p.bg2 = juce::Colour(0xff171717);
+    p.panelSoft = juce::Colour(0xff242424);
     p.textPrimary = juce::Colour(0xffffffff);
-    p.textSecondary = juce::Colour(0xffe6e6e6);
-    p.textMuted = juce::Colour(0xffb0b0b0);
-    p.accent = juce::Colour(0xffe8ff66);
-    p.accentSoft = juce::Colour(0x44e8ff66);
-    p.playhead = juce::Colour(0xffff3344);
-    p.borderSoft = juce::Colour(0xff555555);
-    p.gridMajor = juce::Colour(0xff777777);
-    p.gridMinor = juce::Colour(0xff333333);
+    p.textSecondary = juce::Colour(0xffeeeeee);
+    p.textMuted = juce::Colour(0xffc2c2c2);
+    p.accent = juce::Colour(0xffe9ff70);
+    p.accentSoft = juce::Colour(0x42e9ff70);
+    p.playhead = juce::Colour(0xffff4050);
+    p.borderSoft = juce::Colour(0xff666666);
+    p.gridMajor = juce::Colour(0xff858585);
+    p.gridMinor = juce::Colour(0xff3b3b3b);
     p.clipText = juce::Colour(0xff000000);
-    p.roleChords = juce::Colour(0xff66b3ff);
-    p.roleBass = juce::Colour(0xffffaa44);
-    p.roleDrums = juce::Colour(0xffe8ff66);
-    p.roleMelody = juce::Colour(0xffff88ff);
-    p.senseiGlow = juce::Colour(0x66e8ff66);
+    p.roleChords = juce::Colour(0xff72bcff);
+    p.roleBass = juce::Colour(0xffffb354);
+    p.roleDrums = juce::Colour(0xffe9ff70);
+    p.roleMelody = juce::Colour(0xffff96ff);
+    p.senseiGlow = juce::Colour(0x60e9ff70);
     p.transportBg = juce::Colour(0xff000000);
-    p.danger = juce::Colour(0xffff3344);
+    p.danger = juce::Colour(0xffff4050);
     p.selectedOutline = juce::Colour(0xffffffff);
     return p;
 }
@@ -160,7 +165,7 @@ void StudioLookAndFeel::applyPaletteToWidgets()
     setColour(juce::Label::backgroundColourId, juce::Colours::transparentBlack);
     setColour(juce::Label::outlineColourId, juce::Colours::transparentBlack);
     setColour(juce::TextButton::buttonColourId, palette_.panelSoft);
-    setColour(juce::TextButton::buttonOnColourId, palette_.accent.withMultipliedAlpha(0.85f));
+    setColour(juce::TextButton::buttonOnColourId, palette_.accent.withMultipliedAlpha(0.88f));
     setColour(juce::TextButton::textColourOffId, palette_.textPrimary);
     setColour(juce::TextButton::textColourOnId, palette_.clipText);
     setColour(juce::ComboBox::backgroundColourId, palette_.bg2);
@@ -171,13 +176,15 @@ void StudioLookAndFeel::applyPaletteToWidgets()
     setColour(juce::PopupMenu::textColourId, palette_.textPrimary);
     setColour(juce::PopupMenu::highlightedBackgroundColourId, palette_.accentSoft);
     setColour(juce::PopupMenu::highlightedTextColourId, palette_.textPrimary);
+    setColour(juce::ListBox::backgroundColourId, palette_.bg1);
+    setColour(juce::ListBox::outlineColourId, juce::Colours::transparentBlack);
     setColour(juce::ScrollBar::thumbColourId, palette_.borderSoft);
     setColour(juce::CaretComponent::caretColourId, palette_.accent);
 }
 
 juce::Font StudioLookAndFeel::getTextButtonFont(juce::TextButton&, int buttonHeight)
 {
-    return juce::FontOptions(juce::jmin(15.0f, (float) buttonHeight * 0.48f));
+    return juce::FontOptions(juce::jlimit(13.0f, 15.5f, (float) buttonHeight * 0.44f));
 }
 
 juce::Font StudioLookAndFeel::getLabelFont(juce::Label&)
