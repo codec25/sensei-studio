@@ -37,6 +37,7 @@ MainComponent::MainComponent()
     addAndMakeVisible(splitter_);
     addAndMakeVisible(editorDock_);
     addAndMakeVisible(senseiPanel_);
+    addAndMakeVisible(viewControlBar_);
 
     audioEngine_.setTransport(&document_.transport());
     audioEngine_.setSnapshotPublisher(&document_.snapshots());
@@ -67,15 +68,16 @@ MainComponent::MainComponent()
         audioEngine_.allNotesOff();
         handleProjectEdited();
     };
-    browserPanel_.onCollapseToggle = [this] {
-        themeController_.setBrowserCollapsed(! themeController_.browserCollapsed());
-        browserPanel_.setCollapsed(themeController_.browserCollapsed());
-        resized();
-    };
+    browserPanel_.onCollapseToggle = [this] { toggleCreateView(); };
 
     arrangementView_.setDocument(&document_);
     arrangementView_.onEdited = [this] { handleProjectEdited(); };
-    arrangementView_.onSelectionChanged = [this] { refreshAll(); };
+    arrangementView_.onSelectionChanged = [this] {
+        // Selection drives the contextual editor. If the user explicitly closed
+        // Edit we respect that choice; reopening Edit immediately follows the
+        // current clip/track.
+        refreshAll();
+    };
 
     editorDock_.setDocument(&document_);
     editorDock_.onEdited = [this] {
@@ -92,14 +94,21 @@ MainComponent::MainComponent()
     senseiPanel_.setDocument(&document_);
     senseiPanel_.setCollapsed(themeController_.senseiCollapsed());
     senseiPanel_.onChanged = [this] { refreshAll(); };
-    senseiPanel_.onCollapseToggle = [this] {
-        themeController_.setSenseiCollapsed(! themeController_.senseiCollapsed());
-        senseiPanel_.setCollapsed(themeController_.senseiCollapsed());
-        resized();
+    senseiPanel_.onCollapseToggle = [this] { toggleSenseiView(); };
+
+    viewControlBar_.onCreate = [this] { toggleCreateView(); };
+    viewControlBar_.onEdit = [this] { toggleEditView(); };
+    viewControlBar_.onMixer = [] {
+        // Deliberately unavailable until the real mixer exists. Never expose a
+        // dead production surface simply to make the interface look complete.
     };
+    viewControlBar_.onSensei = [this] { toggleSenseiView(); };
+    viewControlBar_.setMixerAvailable(false);
 
     splitter_.onDragDelta = [this](int deltaY) {
-        const int workspaceH = juce::jmax(1, getHeight() - 108);
+        if (! editorOpen_)
+            return;
+        const int workspaceH = juce::jmax(1, getHeight() - 156);
         const float current = themeController_.editorHeightFraction();
         const float editorH = current * (float) workspaceH;
         const float next = (editorH - (float) deltaY) / (float) workspaceH;
@@ -133,6 +142,36 @@ void MainComponent::toggleLoop()
     document_.execute(std::make_unique<sensei::core::SetLoopRegionCommand>(
         loop.startBeat, loop.lengthBeats, ! loop.enabled));
     handleProjectEdited();
+}
+
+void MainComponent::toggleCreateView()
+{
+    const bool nextCollapsed = ! browserPanel_.isCollapsed();
+    themeController_.setBrowserCollapsed(nextCollapsed);
+    browserPanel_.setCollapsed(nextCollapsed);
+    resized();
+}
+
+void MainComponent::toggleEditView()
+{
+    editorOpen_ = ! editorOpen_;
+    editorDock_.setVisible(editorOpen_);
+    splitter_.setVisible(editorOpen_);
+    resized();
+}
+
+void MainComponent::toggleSenseiView()
+{
+    const bool nextCollapsed = ! senseiPanel_.isCollapsed();
+    themeController_.setSenseiCollapsed(nextCollapsed);
+    senseiPanel_.setCollapsed(nextCollapsed);
+    resized();
+}
+
+void MainComponent::syncViewControls()
+{
+    viewControlBar_.setStates(! browserPanel_.isCollapsed(), editorOpen_, false,
+                              ! senseiPanel_.isCollapsed());
 }
 
 sensei::core::InstrumentId MainComponent::auditionInstrument() const
@@ -187,6 +226,11 @@ void MainComponent::resized()
     top.removeFromRight(12);
     transportBar_.setBounds(top);
 
+    // One predictable view-control surface. It is always reachable and never
+    // competes with transport controls at the top of the application.
+    constexpr int viewBarH = 48;
+    viewControlBar_.setBounds(area.removeFromBottom(viewBarH));
+
     // F.1 productivity rule: the song owns the screen. Supporting panels collapse
     // automatically on tighter layouts, while the user's saved desktop choices
     // return as soon as enough horizontal space is available again.
@@ -202,6 +246,16 @@ void MainComponent::resized()
     browserPanel_.setBounds(area.removeFromLeft(browserW));
     senseiPanel_.setBounds(area.removeFromRight(senseiW));
 
+    editorDock_.setVisible(editorOpen_);
+    splitter_.setVisible(editorOpen_);
+
+    if (! editorOpen_)
+    {
+        arrangementView_.setBounds(area);
+        syncViewControls();
+        return;
+    }
+
     constexpr int splitterH = 10;
     const int workspaceH = juce::jmax(180, area.getHeight());
     int editorH = juce::roundToInt(themeController_.editorHeightFraction() * (float) workspaceH);
@@ -211,12 +265,15 @@ void MainComponent::resized()
     arrangementView_.setBounds(area.removeFromTop(arrangeH));
     splitter_.setBounds(area.removeFromTop(splitterH));
     editorDock_.setBounds(area);
+    syncViewControls();
 }
 
 bool MainComponent::keyPressed(const juce::KeyPress& key)
 {
     const auto mods = key.getModifiers();
-    if (mods.isCommandDown() || mods.isCtrlDown())
+    const bool primary = mods.isCommandDown() || mods.isCtrlDown();
+
+    if (primary)
     {
         if (key.getKeyCode() == 'z' || key.getKeyCode() == 'Z')
         {
@@ -233,10 +290,34 @@ bool MainComponent::keyPressed(const juce::KeyPress& key)
             handleProjectEdited();
             return true;
         }
+
+        // Visible controls remain the primary interaction. These shortcuts are
+        // accelerators for keyboard users and intentionally mirror the same views.
+        if (mods.isAltDown())
+        {
+            if (key.getKeyCode() == 'b' || key.getKeyCode() == 'B')
+            {
+                toggleCreateView();
+                return true;
+            }
+            if (key.getKeyCode() == 'e' || key.getKeyCode() == 'E')
+            {
+                toggleEditView();
+                return true;
+            }
+            if (key.getKeyCode() == 's' || key.getKeyCode() == 'S')
+            {
+                toggleSenseiView();
+                return true;
+            }
+        }
     }
+
     if (arrangementView_.keyPressed(key))
         return true;
-    return editorDock_.keyPressed(key);
+    if (editorOpen_)
+        return editorDock_.keyPressed(key);
+    return false;
 }
 
 void MainComponent::timerCallback()
