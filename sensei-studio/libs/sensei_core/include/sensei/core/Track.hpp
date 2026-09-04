@@ -1,10 +1,12 @@
 #pragma once
 
+#include "sensei/core/AudioClip.hpp"
 #include "sensei/core/Id.hpp"
 #include "sensei/core/InstrumentId.hpp"
 #include "sensei/core/MidiClip.hpp"
 #include "sensei/core/Types.hpp"
 
+#include <algorithm>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -14,7 +16,8 @@ namespace sensei::core {
 enum class TrackType
 {
     Midi,
-    Drums
+    Drums,
+    Audio
 };
 
 enum class TrackRole
@@ -96,6 +99,22 @@ struct DrumClip
     }
 }
 
+// Shared mixer state. Reverb is modelled as a send, not baked into clips, so
+// several tracks can feed one return effect like professional DAWs do.
+struct TrackMixState
+{
+    double gainDb = 0.0;
+    double pan = 0.0;          // -1 left ... +1 right
+    double reverbSend01 = 0.0; // 0 dry send ... 1 full send
+
+    void sanitize() noexcept
+    {
+        gainDb = std::clamp(gainDb, -96.0, 24.0);
+        pan = std::clamp(pan, -1.0, 1.0);
+        reverbSend01 = std::clamp(reverbSend01, 0.0, 1.0);
+    }
+};
+
 struct Track
 {
     Id id = kInvalidId;
@@ -107,8 +126,10 @@ struct Track
     // Playback routing — mute always silences; solo (when any solo active) gates others.
     bool muted = false;
     bool solo = false;
+    TrackMixState mix {};
     std::vector<MidiClip> clips;
     std::vector<DrumClip> drumClips;
+    std::vector<AudioClip> audioClips;
     // True while track content still originates from a Sensei-generated action.
     bool generatedOrigin = false;
 };
@@ -132,4 +153,3 @@ struct Track
 }
 
 } // namespace sensei::core
-
