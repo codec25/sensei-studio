@@ -74,8 +74,7 @@ MainComponent::MainComponent()
     arrangementView_.onEdited = [this] { handleProjectEdited(); };
     arrangementView_.onSelectionChanged = [this] {
         // Selection drives the contextual editor. If the user explicitly closed
-        // Edit we respect that choice; reopening Edit immediately follows the
-        // current clip/track.
+        // Editor we respect that choice; reopening follows the current clip/track.
         refreshAll();
     };
 
@@ -103,12 +102,13 @@ MainComponent::MainComponent()
         // dead production surface simply to make the interface look complete.
     };
     viewControlBar_.onSensei = [this] { toggleSenseiView(); };
+    viewControlBar_.onFocusArrangement = [this] { focusArrangement(); };
     viewControlBar_.setMixerAvailable(false);
 
     splitter_.onDragDelta = [this](int deltaY) {
         if (! editorOpen_)
             return;
-        const int workspaceH = juce::jmax(1, getHeight() - 156);
+        const int workspaceH = juce::jmax(1, getHeight() - 150);
         const float current = themeController_.editorHeightFraction();
         const float editorH = current * (float) workspaceH;
         const float next = (editorH - (float) deltaY) / (float) workspaceH;
@@ -155,8 +155,6 @@ void MainComponent::toggleCreateView()
 void MainComponent::toggleEditView()
 {
     editorOpen_ = ! editorOpen_;
-    editorDock_.setVisible(editorOpen_);
-    splitter_.setVisible(editorOpen_);
     resized();
 }
 
@@ -168,10 +166,23 @@ void MainComponent::toggleSenseiView()
     resized();
 }
 
+void MainComponent::focusArrangement()
+{
+    // Logic/Ableton-style focus action: collapse supporting working areas without
+    // changing the project. The song immediately reclaims the whole workspace.
+    themeController_.setBrowserCollapsed(true);
+    themeController_.setSenseiCollapsed(true);
+    browserPanel_.setCollapsed(true);
+    senseiPanel_.setCollapsed(true);
+    editorOpen_ = false;
+    resized();
+}
+
 void MainComponent::syncViewControls()
 {
-    viewControlBar_.setStates(! browserPanel_.isCollapsed(), editorOpen_, false,
-                              ! senseiPanel_.isCollapsed());
+    viewControlBar_.setStates(browserPanel_.isVisible() && ! browserPanel_.isCollapsed(),
+                              editorOpen_, false,
+                              senseiPanel_.isVisible() && ! senseiPanel_.isCollapsed());
 }
 
 sensei::core::InstrumentId MainComponent::auditionInstrument() const
@@ -210,41 +221,56 @@ void MainComponent::paint(juce::Graphics& g)
     g.fillAll(p.bg0);
 
     juce::ColourGradient header(p.accentSoft, 0.0f, 0.0f,
-                                juce::Colours::transparentBlack, 0.0f, 72.0f, false);
+                                juce::Colours::transparentBlack, 0.0f, 64.0f, false);
     g.setGradientFill(header);
-    g.fillRect(0, 0, getWidth(), 72);
+    g.fillRect(0, 0, getWidth(), 64);
 
-    drawSenseiOrb(g, { 16.0f, 14.0f, 32.0f, 32.0f }, p, 0.75f);
+    drawSenseiOrb(g, { 14.0f, 12.0f, 28.0f, 28.0f }, p, 0.75f);
 }
 
 void MainComponent::resized()
 {
     auto area = getLocalBounds();
-    auto top = area.removeFromTop(56).reduced(56, 8);
-    brandLabel_.setBounds(top.removeFromLeft(220));
-    themeBox_.setBounds(top.removeFromRight(160).reduced(0, 4));
-    top.removeFromRight(12);
+
+    // DAW-style compact chrome: transport/status at the top, music beneath it.
+    auto top = area.removeFromTop(50).reduced(50, 6);
+    brandLabel_.setBounds(top.removeFromLeft(205));
+    themeBox_.setBounds(top.removeFromRight(145).reduced(0, 3));
+    top.removeFromRight(10);
     transportBar_.setBounds(top);
 
-    // One predictable view-control surface. It is always reachable and never
-    // competes with transport controls at the top of the application.
-    constexpr int viewBarH = 48;
+    // One predictable show/hide surface. It controls working areas; it is not a
+    // set of competing app destinations.
+    constexpr int viewBarH = 44;
     viewControlBar_.setBounds(area.removeFromBottom(viewBarH));
 
-    // F.1 productivity rule: the song owns the screen. Supporting panels collapse
-    // automatically on tighter layouts, while the user's saved desktop choices
-    // return as soon as enough horizontal space is available again.
-    const bool compact = getWidth() < 1180;
-    const bool focused = getWidth() < 1380;
-    const bool browserCollapsed = compact || themeController_.browserCollapsed();
-    const bool senseiCollapsed = focused || themeController_.senseiCollapsed();
-    browserPanel_.setCollapsed(browserCollapsed);
-    senseiPanel_.setCollapsed(senseiCollapsed);
+    const bool browserOpen = ! browserPanel_.isCollapsed();
+    const bool senseiOpen = ! senseiPanel_.isCollapsed();
 
-    const int browserW = browserCollapsed ? 44 : juce::jlimit(200, 236, getWidth() / 7);
-    const int senseiW = senseiCollapsed ? 44 : juce::jlimit(280, 320, getWidth() / 5);
-    browserPanel_.setBounds(area.removeFromLeft(browserW));
-    senseiPanel_.setBounds(area.removeFromRight(senseiW));
+    browserPanel_.setVisible(browserOpen);
+    senseiPanel_.setVisible(senseiOpen);
+
+    // Folded panels consume zero pixels. This is the core F.2A rule: the
+    // arrangement gets every pixel that supporting tools are not actively using.
+    if (browserOpen)
+    {
+        const int browserW = juce::jlimit(200, 236, getWidth() / 7);
+        browserPanel_.setBounds(area.removeFromLeft(browserW));
+    }
+    else
+    {
+        browserPanel_.setBounds({});
+    }
+
+    if (senseiOpen)
+    {
+        const int senseiW = juce::jlimit(270, 320, getWidth() / 5);
+        senseiPanel_.setBounds(area.removeFromRight(senseiW));
+    }
+    else
+    {
+        senseiPanel_.setBounds({});
+    }
 
     editorDock_.setVisible(editorOpen_);
     splitter_.setVisible(editorOpen_);
@@ -256,7 +282,7 @@ void MainComponent::resized()
         return;
     }
 
-    constexpr int splitterH = 10;
+    constexpr int splitterH = 8;
     const int workspaceH = juce::jmax(180, area.getHeight());
     int editorH = juce::roundToInt(themeController_.editorHeightFraction() * (float) workspaceH);
     editorH = juce::jlimit(120, workspaceH - 160, editorH);
@@ -291,8 +317,7 @@ bool MainComponent::keyPressed(const juce::KeyPress& key)
             return true;
         }
 
-        // Visible controls remain the primary interaction. These shortcuts are
-        // accelerators for keyboard users and intentionally mirror the same views.
+        // Visible controls remain primary; shortcuts are accelerators only.
         if (mods.isAltDown())
         {
             if (key.getKeyCode() == 'b' || key.getKeyCode() == 'B')
@@ -308,6 +333,11 @@ bool MainComponent::keyPressed(const juce::KeyPress& key)
             if (key.getKeyCode() == 's' || key.getKeyCode() == 'S')
             {
                 toggleSenseiView();
+                return true;
+            }
+            if (key.getKeyCode() == 'f' || key.getKeyCode() == 'F')
+            {
+                focusArrangement();
                 return true;
             }
         }
