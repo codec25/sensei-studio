@@ -34,6 +34,7 @@ private:
     void toggleCreateView();
     void toggleEditView();
     void toggleSenseiView();
+    void focusArrangement();
     void syncViewControls();
     sensei::core::InstrumentId auditionInstrument() const;
 
