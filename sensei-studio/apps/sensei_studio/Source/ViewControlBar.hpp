@@ -6,8 +6,8 @@
 
 #include <functional>
 
-// F.1 workspace navigation: visible, touch-safe view toggles with keyboard
-// accelerators layered on top. Arrangement remains the primary workspace.
+// F.2A workspace controls: working areas fold around the song instead of behaving
+// like equal destinations. Arrangement remains the anchor at all times.
 class ViewControlBar final : public juce::Component
 {
 public:
@@ -15,23 +15,27 @@ public:
     std::function<void()> onEdit;
     std::function<void()> onMixer;
     std::function<void()> onSensei;
+    std::function<void()> onFocusArrangement;
 
     ViewControlBar()
     {
-        configure(create_, "Create", "Show or hide Create");
-        configure(edit_, "Edit", "Show or hide the selected clip editor");
-        configure(mixer_, "Mixer", "Mixer workspace");
-        configure(sensei_, "Sensei", "Show or hide Sensei");
+        configure(create_, "Create", "Show or hide the sound browser");
+        configure(edit_, "Editor", "Show or hide the selected clip editor");
+        configure(mixer_, "Mixer", "Show or hide the mixer");
+        configure(sensei_, "Sensei", "Show or hide Sensei guidance");
+        configure(focus_, "Focus", "Fold supporting areas and give the song the full workspace");
 
         create_.onClick = [this] { if (onCreate) onCreate(); };
         edit_.onClick = [this] { if (onEdit) onEdit(); };
         mixer_.onClick = [this] { if (onMixer) onMixer(); };
         sensei_.onClick = [this] { if (onSensei) onSensei(); };
+        focus_.onClick = [this] { if (onFocusArrangement) onFocusArrangement(); };
 
         addAndMakeVisible(create_);
         addAndMakeVisible(edit_);
         addAndMakeVisible(mixer_);
         addAndMakeVisible(sensei_);
+        addAndMakeVisible(focus_);
     }
 
     void setStates(bool createOpen, bool editOpen, bool mixerOpen, bool senseiOpen)
@@ -45,7 +49,8 @@ public:
     void setMixerAvailable(bool available)
     {
         mixer_.setEnabled(available);
-        mixer_.setTooltip(available ? "Show or hide Mixer" : "Mixer is coming in the next production pass");
+        mixer_.setTooltip(available ? "Show or hide Mixer"
+                                    : "Mixer unlocks when its real audio controls are wired");
     }
 
     void paint(juce::Graphics& g) override
@@ -60,16 +65,17 @@ public:
     {
         auto area = getLocalBounds().reduced(8, 5);
         constexpr int gap = 6;
-        const int count = 4;
-        const int buttonW = juce::jmin(112, (area.getWidth() - gap * (count - 1)) / count);
-        const int totalW = buttonW * count + gap * (count - 1);
-        area = area.withSizeKeepingCentre(totalW, area.getHeight());
+        const int buttonW = juce::jlimit(72, 104, juce::jmax(72, area.getWidth() / 8));
 
+        // Working-area toggles stay grouped together, like a DAW view selector.
         for (auto* button : { &create_, &edit_, &mixer_, &sensei_ })
         {
             button->setBounds(area.removeFromLeft(buttonW));
             area.removeFromLeft(gap);
         }
+
+        // Focus is intentionally separated: it is a workspace command, not a view.
+        focus_.setBounds(area.removeFromRight(buttonW));
     }
 
 private:
@@ -85,4 +91,5 @@ private:
     juce::TextButton edit_;
     juce::TextButton mixer_;
     juce::TextButton sensei_;
+    juce::TextButton focus_;
 };
