@@ -13,6 +13,13 @@
 class ArrangementView final : public juce::Component
 {
 public:
+    enum class TrackDensity
+    {
+        Compact,
+        Normal,
+        Expanded
+    };
+
     std::function<void()> onEdited;
     std::function<void()> onSelectionChanged;
 
@@ -26,6 +33,28 @@ public:
     {
         playheadBeats_ = beats;
         repaint();
+    }
+
+    void cycleTrackDensity()
+    {
+        switch (density_)
+        {
+            case TrackDensity::Compact: density_ = TrackDensity::Normal; break;
+            case TrackDensity::Normal: density_ = TrackDensity::Expanded; break;
+            case TrackDensity::Expanded: density_ = TrackDensity::Compact; break;
+        }
+        repaint();
+    }
+
+    juce::String trackDensityLabel() const
+    {
+        switch (density_)
+        {
+            case TrackDensity::Compact: return "Compact";
+            case TrackDensity::Normal: return "Normal";
+            case TrackDensity::Expanded: return "Expanded";
+        }
+        return "Normal";
     }
 
     void paint(juce::Graphics& g) override
@@ -42,12 +71,11 @@ public:
         const double songLen = juce::jmax(project.songLengthBeats(), sensei::core::kDefaultLoopBeats);
         const int bars = juce::jmax(1, (int) std::ceil(songLen / sensei::core::kBeatsPerBar));
         const float headerH = 36.0f;
-        const float labelW = kLabelW;
+        const float labelW = labelWidth();
         const float contentW = juce::jmax(1.0f, (float) getWidth() - labelW - 4.0f);
         const float beatW = contentW / (float) songLen;
         const float laneH = laneHeight();
 
-        // Section band
         for (const auto& section : project.sections())
         {
             const float x = labelW + (float) section.startBeat * beatW;
@@ -62,7 +90,6 @@ public:
                        juce::Justification::centredLeft, true);
         }
 
-        // Ruler / bar numbers + soft grid
         g.setFont(juce::FontOptions(12.0f));
         for (int bar = 0; bar < bars; ++bar)
         {
@@ -90,45 +117,55 @@ public:
 
         for (int i = 0; i < 4; ++i)
         {
-            const float y = headerH + 6.0f + i * (laneH + kLaneGap);
+            const float y = headerH + 6.0f + i * (laneH + laneGap());
             const auto* track = project.findTrackByRole(roleIds[i]);
             const auto roleColour = colourForRole(roleIds[i], p);
-            const bool selectedTrack = track != nullptr
-                                       && document_->selectedTrackId() == track->id;
+            const bool selectedTrack = track != nullptr && document_->selectedTrackId() == track->id;
 
-            // Lane background
             g.setColour(selectedTrack ? p.bg2.brighter(0.04f) : p.bg2);
-            g.fillRoundedRectangle(4.0f, y, (float) getWidth() - 8.0f, laneH, 8.0f);
+            g.fillRoundedRectangle(4.0f, y, (float) getWidth() - 8.0f, laneH, 6.0f);
             g.setColour(roleColour);
-            g.fillRoundedRectangle(4.0f, y + 6.0f, 4.0f, laneH - 12.0f, 2.0f);
+            g.fillRoundedRectangle(4.0f, y + 5.0f, 4.0f, laneH - 10.0f, 2.0f);
 
-            // Header text
             if (track != nullptr)
             {
                 const auto info = sensei::core::instrumentInfo(track->instrumentId);
+                const auto nameTop = density_ == TrackDensity::Compact ? y + 10.0f : y + 5.0f;
                 g.setColour(p.textPrimary);
-                g.setFont(juce::FontOptions(13.5f).withStyle("Bold"));
-                g.drawText(track->name, juce::Rectangle<float>(14, y + 4, labelW - 70, 18),
-                           juce::Justification::centredLeft, true);
-                g.setColour(p.textMuted);
-                g.setFont(juce::FontOptions(11.5f));
-                g.drawText(roleName(roleIds[i]) + " · " + info.displayName,
-                           juce::Rectangle<float>(14, y + 22, labelW - 70, 16),
+                g.setFont(juce::FontOptions(density_ == TrackDensity::Compact ? 12.5f : 13.5f).withStyle("Bold"));
+                g.drawText(track->name, juce::Rectangle<float>(14, nameTop, labelW - 78, 18),
                            juce::Justification::centredLeft, true);
 
-                drawMuteSolo(g, p, muteBounds(i, y, laneH), track->muted, false);
-                drawMuteSolo(g, p, soloBounds(i, y, laneH), track->solo, true);
+                if (density_ != TrackDensity::Compact)
+                {
+                    g.setColour(p.textMuted);
+                    g.setFont(juce::FontOptions(11.0f));
+                    g.drawText(roleName(roleIds[i]) + " · " + info.displayName,
+                               juce::Rectangle<float>(14, y + 24, labelW - 78, 16),
+                               juce::Justification::centredLeft, true);
+                }
+
+                if (density_ == TrackDensity::Expanded)
+                {
+                    g.setColour(p.textMuted.withAlpha(0.85f));
+                    g.setFont(juce::FontOptions(10.5f));
+                    g.drawText(track->type == sensei::core::TrackType::Drums ? "Drum track" : "MIDI track",
+                               juce::Rectangle<float>(14, y + 43, labelW - 78, 15),
+                               juce::Justification::centredLeft, true);
+                }
+
+                drawMuteSolo(g, p, muteVisualBounds(y, laneH), track->muted, false);
+                drawMuteSolo(g, p, soloVisualBounds(y, laneH), track->solo, true);
 
                 if (! sensei::core::isTrackAudible(*track, anySolo))
                 {
                     g.setColour(p.bg0.withAlpha(0.35f));
-                    g.fillRoundedRectangle(labelW, y + 2, contentW, laneH - 4, 6.0f);
+                    g.fillRoundedRectangle(labelW, y + 2, contentW, laneH - 4, 5.0f);
                 }
             }
 
-            // Timeline lane
             g.setColour(p.bg0.withAlpha(0.35f));
-            g.fillRect(labelW, y + 4, contentW, laneH - 8);
+            g.fillRect(labelW, y + 3, contentW, laneH - 6);
 
             if (track == nullptr)
                 continue;
@@ -144,23 +181,26 @@ public:
                 const float w = juce::jmax(8.0f, (float) length * beatW - 3.0f);
                 const bool selected = document_->selectedTrackId() == trackId
                                       && document_->selectedClipId() == clipId;
+                const float clipInset = density_ == TrackDensity::Compact ? 5.0f : 7.0f;
                 auto fill = roleColour.withAlpha(selected ? 0.92f : 0.72f);
                 g.setColour(fill);
-                g.fillRoundedRectangle(x + 1, y + 8, w, laneH - 16, 6.0f);
+                g.fillRoundedRectangle(x + 1, y + clipInset, w, laneH - clipInset * 2.0f, 5.0f);
                 if (selected)
                 {
                     g.setColour(p.selectedOutline.withAlpha(0.9f));
-                    g.drawRoundedRectangle(x + 1, y + 8, w, laneH - 16, 6.0f, 1.8f);
+                    g.drawRoundedRectangle(x + 1, y + clipInset, w, laneH - clipInset * 2.0f, 5.0f, 1.8f);
                 }
                 g.setColour(p.bg0.withAlpha(0.25f));
-                g.fillRect(x + 1, y + 8, 3.0f, laneH - 16);
+                g.fillRect(x + 1, y + clipInset, 3.0f, laneH - clipInset * 2.0f);
 
                 g.setColour(p.clipText);
-                g.setFont(juce::FontOptions(12.0f).withStyle("Bold"));
-                g.drawText(name, juce::Rectangle<float>(x + 8, y + 9, w - 14, 16),
+                g.setFont(juce::FontOptions(density_ == TrackDensity::Compact ? 11.0f : 12.0f).withStyle("Bold"));
+                g.drawText(name, juce::Rectangle<float>(x + 8, y + clipInset + 1, w - 14, 16),
                            juce::Justification::centredLeft, true);
-                drawClipPreview(g, p, track, clipId, drums,
-                                juce::Rectangle<float>(x + 8, y + 26, w - 14, laneH - 36));
+
+                if (density_ != TrackDensity::Compact && laneH >= 58.0f)
+                    drawClipPreview(g, p, track, clipId, drums,
+                                    juce::Rectangle<float>(x + 8, y + 25, w - 14, laneH - 33));
             };
 
             if (track->type == sensei::core::TrackType::Drums)
@@ -175,7 +215,6 @@ public:
             }
         }
 
-        // Loop region tint
         if (project.loop().enabled)
         {
             const float x = labelW + (float) project.loop().startBeat * beatW;
@@ -187,7 +226,6 @@ public:
             g.drawVerticalLine((int) (x + w), headerH, (float) getHeight());
         }
 
-        // Playhead
         const float px = labelW + (float) playheadBeats_ * beatW;
         g.setColour(p.playhead);
         g.drawLine(px, 2.0f, px, (float) getHeight() - 2.0f, 2.0f);
@@ -202,31 +240,26 @@ public:
         const float laneH = laneHeight();
         for (int i = 0; i < 4; ++i)
         {
-            const float y = headerH + 6.0f + i * (laneH + kLaneGap);
+            const float y = headerH + 6.0f + i * (laneH + laneGap());
             auto* track = trackAt(i);
             if (track == nullptr)
                 continue;
-            if (muteBounds(i, y, laneH).contains(event.position))
+            if (muteHitBounds(y, laneH).contains(event.position))
             {
-                document_->execute(std::make_unique<sensei::core::SetTrackMuteCommand>(
-                    track->id, ! track->muted));
-                if (onEdited)
-                    onEdited();
+                document_->execute(std::make_unique<sensei::core::SetTrackMuteCommand>(track->id, ! track->muted));
+                if (onEdited) onEdited();
                 return;
             }
-            if (soloBounds(i, y, laneH).contains(event.position))
+            if (soloHitBounds(y, laneH).contains(event.position))
             {
-                document_->execute(std::make_unique<sensei::core::SetTrackSoloCommand>(
-                    track->id, ! track->solo));
-                if (onEdited)
-                    onEdited();
+                document_->execute(std::make_unique<sensei::core::SetTrackSoloCommand>(track->id, ! track->solo));
+                if (onEdited) onEdited();
                 return;
             }
-            if (event.position.x < kLabelW && event.position.y >= y && event.position.y <= y + laneH)
+            if (event.position.x < labelWidth() && event.position.y >= y && event.position.y <= y + laneH)
             {
                 document_->setSelectedTrackId(track->id);
-                if (onSelectionChanged)
-                    onSelectionChanged();
+                if (onSelectionChanged) onSelectionChanged();
                 repaint();
                 return;
             }
@@ -239,10 +272,9 @@ public:
         {
             document_->setSelectedClipId(hit_.trackId, hit_.clipId);
             const double songLen = juce::jmax(document_->project().songLengthBeats(), 1.0);
-            const float beatW = ((float) getWidth() - kLabelW - 4.0f) / (float) songLen;
-            dragGrabOffset_ = beatForX(event.position.x, kLabelW, beatW) - hit_.startBeat;
-            if (onSelectionChanged)
-                onSelectionChanged();
+            const float beatW = ((float) getWidth() - labelWidth() - 4.0f) / (float) songLen;
+            dragGrabOffset_ = beatForX(event.position.x, labelWidth(), beatW) - hit_.startBeat;
+            if (onSelectionChanged) onSelectionChanged();
             repaint();
         }
     }
@@ -252,9 +284,9 @@ public:
         if (document_ == nullptr || ! hit_.valid)
             return;
         const double songLen = juce::jmax(document_->project().songLengthBeats(), 1.0);
-        const float beatW = ((float) getWidth() - kLabelW - 4.0f) / (float) songLen;
+        const float beatW = ((float) getWidth() - labelWidth() - 4.0f) / (float) songLen;
         const double beat = sensei::core::snapBeat(
-            juce::jmax(0.0, beatForX(event.position.x, kLabelW, beatW) - dragGrabOffset_));
+            juce::jmax(0.0, beatForX(event.position.x, labelWidth(), beatW) - dragGrabOffset_));
         previewStart_ = beat;
         dragging_ = true;
         repaint();
@@ -269,10 +301,8 @@ public:
         }
         if (std::abs(previewStart_ - dragOriginBeat_) > 1.0e-6)
         {
-            document_->execute(std::make_unique<sensei::core::MoveClipCommand>(
-                hit_.trackId, hit_.clipId, previewStart_));
-            if (onEdited)
-                onEdited();
+            document_->execute(std::make_unique<sensei::core::MoveClipCommand>(hit_.trackId, hit_.clipId, previewStart_));
+            if (onEdited) onEdited();
         }
         dragging_ = false;
         hit_ = {};
@@ -282,7 +312,6 @@ public:
     void mouseDoubleClick(const juce::MouseEvent& event) override
     {
         mouseDown(event);
-        // Editor dock already shows selected track — double-click just focuses selection.
     }
 
     bool keyPressed(const juce::KeyPress& key) override
@@ -297,8 +326,7 @@ public:
         if (key == juce::KeyPress::deleteKey || key == juce::KeyPress::backspaceKey)
         {
             document_->execute(std::make_unique<sensei::core::DeleteClipCommand>(trackId, clipId));
-            if (onEdited)
-                onEdited();
+            if (onEdited) onEdited();
             return true;
         }
         if (key.getTextCharacter() == 'd' || key.getTextCharacter() == 'D')
@@ -316,16 +344,16 @@ public:
                 start = drum->startBeat + len;
             }
             document_->execute(std::make_unique<sensei::core::DuplicateClipCommand>(trackId, clipId, start));
-            if (onEdited)
-                onEdited();
+            if (onEdited) onEdited();
             return true;
         }
         return false;
     }
 
 private:
-    static constexpr float kLabelW = 168.0f;
-    static constexpr float kLaneGap = 8.0f;
+    static constexpr float kCompactLaneH = 44.0f;
+    static constexpr float kNormalLaneH = 64.0f;
+    static constexpr float kExpandedLaneH = 88.0f;
 
     struct Hit
     {
@@ -335,9 +363,29 @@ private:
         double startBeat = 0.0;
     };
 
+    float labelWidth() const noexcept
+    {
+        switch (density_)
+        {
+            case TrackDensity::Compact: return 154.0f;
+            case TrackDensity::Normal: return 176.0f;
+            case TrackDensity::Expanded: return 202.0f;
+        }
+        return 176.0f;
+    }
+
+    float laneGap() const noexcept
+    {
+        return density_ == TrackDensity::Compact ? 4.0f : 6.0f;
+    }
+
     float laneHeight() const noexcept
     {
-        return juce::jmax(52.0f, ((float) getHeight() - 48.0f) / 4.0f - kLaneGap);
+        const float available = juce::jmax(28.0f, ((float) getHeight() - 48.0f - laneGap() * 3.0f) / 4.0f);
+        float target = kNormalLaneH;
+        if (density_ == TrackDensity::Compact) target = kCompactLaneH;
+        if (density_ == TrackDensity::Expanded) target = kExpandedLaneH;
+        return juce::jmin(target, available);
     }
 
     static juce::String roleName(sensei::core::TrackRole role)
@@ -376,24 +424,31 @@ private:
     static void drawMuteSolo(juce::Graphics& g, const StudioPalette& p, juce::Rectangle<float> r,
                              bool on, bool isSolo)
     {
-        g.setColour(on ? (isSolo ? p.accent.withAlpha(0.9f) : p.danger.withAlpha(0.85f))
-                       : p.panelSoft);
+        g.setColour(on ? (isSolo ? p.accent.withAlpha(0.9f) : p.danger.withAlpha(0.85f)) : p.panelSoft);
         g.fillRoundedRectangle(r, 4.0f);
         g.setColour(on ? p.clipText : p.textMuted);
         g.setFont(juce::FontOptions(11.0f).withStyle("Bold"));
         g.drawText(isSolo ? "S" : "M", r, juce::Justification::centred, false);
     }
 
-    juce::Rectangle<float> muteBounds(int index, float y, float laneH) const
+    juce::Rectangle<float> muteVisualBounds(float y, float laneH) const
     {
-        juce::ignoreUnused(index);
-        return { kLabelW - 56.0f, y + laneH * 0.5f - 11.0f, 22.0f, 22.0f };
+        return { labelWidth() - 58.0f, y + laneH * 0.5f - 12.0f, 24.0f, 24.0f };
     }
 
-    juce::Rectangle<float> soloBounds(int index, float y, float laneH) const
+    juce::Rectangle<float> soloVisualBounds(float y, float laneH) const
     {
-        juce::ignoreUnused(index);
-        return { kLabelW - 30.0f, y + laneH * 0.5f - 11.0f, 22.0f, 22.0f };
+        return { labelWidth() - 30.0f, y + laneH * 0.5f - 12.0f, 24.0f, 24.0f };
+    }
+
+    juce::Rectangle<float> muteHitBounds(float y, float laneH) const
+    {
+        return muteVisualBounds(y, laneH).expanded(8.0f);
+    }
+
+    juce::Rectangle<float> soloHitBounds(float y, float laneH) const
+    {
+        return soloVisualBounds(y, laneH).expanded(8.0f);
     }
 
     sensei::core::Track* trackAt(int index) const
@@ -415,7 +470,7 @@ private:
     void drawClipPreview(juce::Graphics& g, const StudioPalette& p, const sensei::core::Track* track,
                          sensei::core::Id clipId, bool drums, juce::Rectangle<float> area) const
     {
-        if (track == nullptr || area.getWidth() < 28.0f)
+        if (track == nullptr || area.getWidth() < 28.0f || area.getHeight() < 8.0f)
             return;
         g.setColour(p.clipText.withAlpha(0.28f));
         if (drums)
@@ -431,7 +486,8 @@ private:
                     continue;
                 const float h = 3.0f + (float) static_cast<int>(hit.lane) * 2.5f;
                 g.fillRoundedRectangle(area.getX() + (float) hit.step * stepW,
-                                       area.getBottom() - h - 2.0f, juce::jmax(2.0f, stepW - 1.0f), h, 1.0f);
+                                       area.getBottom() - h - 2.0f,
+                                       juce::jmax(2.0f, stepW - 1.0f), h, 1.0f);
             }
         }
         else
@@ -467,7 +523,7 @@ private:
         const double songLen = juce::jmax(project.songLengthBeats(), sensei::core::kDefaultLoopBeats);
         const float laneH = laneHeight();
         const float headerH = 36.0f;
-        const float beatW = ((float) getWidth() - kLabelW - 4.0f) / (float) songLen;
+        const float beatW = ((float) getWidth() - labelWidth() - 4.0f) / (float) songLen;
 
         static constexpr sensei::core::TrackRole roleIds[] {
             sensei::core::TrackRole::Chords, sensei::core::TrackRole::Bass,
@@ -476,7 +532,7 @@ private:
 
         for (int i = 0; i < 4; ++i)
         {
-            const float y = headerH + 6.0f + i * (laneH + kLaneGap);
+            const float y = headerH + 6.0f + i * (laneH + laneGap());
             if (pos.y < y || pos.y > y + laneH)
                 continue;
             const auto* track = project.findTrackByRole(roleIds[i]);
@@ -484,8 +540,8 @@ private:
                 continue;
 
             auto consider = [&](sensei::core::Id clipId, double start, double length) {
-                const float x = kLabelW + (float) start * beatW;
-                const float w = juce::jmax(4.0f, (float) length * beatW);
+                const float x = labelWidth() + (float) start * beatW;
+                const float w = juce::jmax(6.0f, (float) length * beatW);
                 if (pos.x >= x && pos.x <= x + w)
                 {
                     hit.valid = true;
@@ -510,6 +566,7 @@ private:
     }
 
     sensei::core::Document* document_ = nullptr;
+    TrackDensity density_ = TrackDensity::Normal;
     double playheadBeats_ = 0.0;
     Hit hit_ {};
     bool dragging_ = false;
