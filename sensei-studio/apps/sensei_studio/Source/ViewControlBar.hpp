@@ -6,8 +6,8 @@
 
 #include <functional>
 
-// F.2B workspace controls: these are compact show/hide affordances around the
-// song, not five equal app destinations. Arrangement remains visually dominant.
+// F.2B workspace controls: compact show/hide affordances around the song.
+// Arrangement remains visually dominant; row density is a view preference.
 class ViewControlBar final : public juce::Component
 {
 public:
@@ -15,6 +15,7 @@ public:
     std::function<void()> onEdit;
     std::function<void()> onMixer;
     std::function<void()> onSensei;
+    std::function<void()> onTrackDensity;
     std::function<void()> onFocusArrangement;
 
     ViewControlBar()
@@ -23,18 +24,21 @@ public:
         configure(edit_, "Edit", "Show or hide the selected clip editor");
         configure(mixer_, "Mix", "Show or hide the mixer");
         configure(sensei_, "Sensei", "Show or hide Sensei guidance");
+        configure(density_, "Rows", "Change Arrangement track density");
         configure(focus_, "Focus", "Fold supporting areas and give the song the full workspace");
 
         create_.onClick = [this] { if (onCreate) onCreate(); };
         edit_.onClick = [this] { if (onEdit) onEdit(); };
         mixer_.onClick = [this] { if (onMixer) onMixer(); };
         sensei_.onClick = [this] { if (onSensei) onSensei(); };
+        density_.onClick = [this] { if (onTrackDensity) onTrackDensity(); };
         focus_.onClick = [this] { if (onFocusArrangement) onFocusArrangement(); };
 
         addAndMakeVisible(create_);
         addAndMakeVisible(edit_);
         addAndMakeVisible(mixer_);
         addAndMakeVisible(sensei_);
+        addAndMakeVisible(density_);
         addAndMakeVisible(focus_);
     }
 
@@ -44,6 +48,12 @@ public:
         edit_.setToggleState(editOpen, juce::dontSendNotification);
         mixer_.setToggleState(mixerOpen, juce::dontSendNotification);
         sensei_.setToggleState(senseiOpen, juce::dontSendNotification);
+    }
+
+    void setDensityLabel(const juce::String& label)
+    {
+        density_.setButtonText(label);
+        density_.setTooltip("Arrangement rows: " + label + ". Click to cycle density.");
     }
 
     void setMixerAvailable(bool available)
@@ -67,9 +77,10 @@ public:
     {
         auto area = getLocalBounds().reduced(6, 4);
         constexpr int gap = 4;
-        constexpr int primaryW = 64;
-        constexpr int senseiW = 72;
-        constexpr int focusW = 58;
+        constexpr int primaryW = 58;
+        constexpr int senseiW = 66;
+        constexpr int densityW = 72;
+        constexpr int focusW = 56;
 
         for (auto* button : { &create_, &edit_, &mixer_ })
         {
@@ -78,6 +89,8 @@ public:
         }
 
         sensei_.setBounds(area.removeFromLeft(senseiW));
+        area.removeFromLeft(gap);
+        density_.setBounds(area.removeFromLeft(densityW));
         area.removeFromLeft(gap + 4);
         focus_.setBounds(area.removeFromLeft(focusW));
     }
@@ -95,5 +108,6 @@ private:
     juce::TextButton edit_;
     juce::TextButton mixer_;
     juce::TextButton sensei_;
+    juce::TextButton density_;
     juce::TextButton focus_;
 };
