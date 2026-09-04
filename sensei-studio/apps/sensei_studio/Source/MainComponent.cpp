@@ -108,7 +108,7 @@ MainComponent::MainComponent()
     splitter_.onDragDelta = [this](int deltaY) {
         if (! editorOpen_)
             return;
-        const int workspaceH = juce::jmax(1, getHeight() - 150);
+        const int workspaceH = juce::jmax(1, getHeight() - 140);
         const float current = themeController_.editorHeightFraction();
         const float editorH = current * (float) workspaceH;
         const float next = (editorH - (float) deltaY) / (float) workspaceH;
@@ -221,28 +221,30 @@ void MainComponent::paint(juce::Graphics& g)
     g.fillAll(p.bg0);
 
     juce::ColourGradient header(p.accentSoft, 0.0f, 0.0f,
-                                juce::Colours::transparentBlack, 0.0f, 64.0f, false);
+                                juce::Colours::transparentBlack, 0.0f, 58.0f, false);
     g.setGradientFill(header);
-    g.fillRect(0, 0, getWidth(), 64);
+    g.fillRect(0, 0, getWidth(), 58);
 
-    drawSenseiOrb(g, { 14.0f, 12.0f, 28.0f, 28.0f }, p, 0.75f);
+    drawSenseiOrb(g, { 13.0f, 10.0f, 26.0f, 26.0f }, p, 0.75f);
 }
 
 void MainComponent::resized()
 {
     auto area = getLocalBounds();
 
-    // DAW-style compact chrome: transport/status at the top, music beneath it.
-    auto top = area.removeFromTop(50).reduced(50, 6);
-    brandLabel_.setBounds(top.removeFromLeft(205));
-    themeBox_.setBounds(top.removeFromRight(145).reduced(0, 3));
-    top.removeFromRight(10);
+    // Professional DAW hierarchy: a thin transport strip, then the song.
+    auto top = area.removeFromTop(46).reduced(46, 5);
+    brandLabel_.setBounds(top.removeFromLeft(195));
+    themeBox_.setBounds(top.removeFromRight(138).reduced(0, 2));
+    top.removeFromRight(8);
     transportBar_.setBounds(top);
 
-    // One predictable show/hide surface. It controls working areas; it is not a
-    // set of competing app destinations.
-    constexpr int viewBarH = 44;
-    viewControlBar_.setBounds(area.removeFromBottom(viewBarH));
+    // A slim edge strip controls supporting work areas. Unlike the earlier
+    // full-width footer it costs very little song height and reads as utility.
+    constexpr int viewBarH = 36;
+    auto viewStrip = area.removeFromBottom(viewBarH);
+    constexpr int viewBarW = 346;
+    viewControlBar_.setBounds(viewStrip.removeFromRight(viewBarW).reduced(4, 2));
 
     const bool browserOpen = ! browserPanel_.isCollapsed();
     const bool senseiOpen = ! senseiPanel_.isCollapsed();
@@ -250,11 +252,11 @@ void MainComponent::resized()
     browserPanel_.setVisible(browserOpen);
     senseiPanel_.setVisible(senseiOpen);
 
-    // Folded panels consume zero pixels. This is the core F.2A rule: the
-    // arrangement gets every pixel that supporting tools are not actively using.
+    // Folded panels consume zero pixels. The arrangement gets every pixel that
+    // supporting tools are not actively using.
     if (browserOpen)
     {
-        const int browserW = juce::jlimit(200, 236, getWidth() / 7);
+        const int browserW = juce::jlimit(196, 232, getWidth() / 7);
         browserPanel_.setBounds(area.removeFromLeft(browserW));
     }
     else
@@ -264,7 +266,7 @@ void MainComponent::resized()
 
     if (senseiOpen)
     {
-        const int senseiW = juce::jlimit(270, 320, getWidth() / 5);
+        const int senseiW = juce::jlimit(266, 314, getWidth() / 5);
         senseiPanel_.setBounds(area.removeFromRight(senseiW));
     }
     else
@@ -282,7 +284,7 @@ void MainComponent::resized()
         return;
     }
 
-    constexpr int splitterH = 8;
+    constexpr int splitterH = 7;
     const int workspaceH = juce::jmax(180, area.getHeight());
     int editorH = juce::roundToInt(themeController_.editorHeightFraction() * (float) workspaceH);
     editorH = juce::jlimit(120, workspaceH - 160, editorH);
