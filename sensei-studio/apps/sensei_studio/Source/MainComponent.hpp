@@ -52,5 +52,6 @@ private:
     SenseiPanel senseiPanel_;
     ViewControlBar viewControlBar_;
 
-    bool editorOpen_ = true;
+    // Arrangement is the default working surface. Editors are summoned when needed.
+    bool editorOpen_ = false;
 };
