@@ -31,7 +31,7 @@ public:
         songLengthBeats_ = beats > 0.0 ? beats : kDefaultLoopBeats;
     }
 
-    // Derives song length from section ends, else farthest clip end, else fallback.
+    // Derives song length from section ends, else farthest MIDI/drum/audio clip end.
     double deriveAndSetSongLength(double fallbackBeats = kDefaultLoopBeats) noexcept
     {
         double end = derivedSongLengthBeats(sections_, 0.0);
@@ -40,6 +40,8 @@ public:
             for (const auto& clip : track.clips)
                 end = std::max(end, clip.startBeat + clip.lengthBeats);
             for (const auto& clip : track.drumClips)
+                end = std::max(end, clip.startBeat + clip.lengthBeats);
+            for (const auto& clip : track.audioClips)
                 end = std::max(end, clip.startBeat + clip.lengthBeats);
         }
         if (! (end > 0.0))
@@ -68,6 +70,8 @@ public:
     [[nodiscard]] const MidiClip* findClip(Id trackId, Id clipId) const noexcept;
     [[nodiscard]] DrumClip* findDrumClip(Id trackId, Id clipId) noexcept;
     [[nodiscard]] const DrumClip* findDrumClip(Id trackId, Id clipId) const noexcept;
+    [[nodiscard]] AudioClip* findAudioClip(Id trackId, Id clipId) noexcept;
+    [[nodiscard]] const AudioClip* findAudioClip(Id trackId, Id clipId) const noexcept;
     [[nodiscard]] Section* findSection(Id sectionId) noexcept;
     [[nodiscard]] const Section* findSection(Id sectionId) const noexcept;
     [[nodiscard]] MidiNote* findNote(Id trackId, Id clipId, Id noteId) noexcept;
