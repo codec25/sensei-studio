@@ -18,6 +18,7 @@ add_executable(sensei_core_tests
   ui/ThemeTests.cpp
   ${CMAKE_SOURCE_DIR}/apps/sensei_studio/Source/ui/Theme.cpp
   engine/MidiEventBufferTests.cpp
+  engine/AudioClipRendererTests.cpp
 )
 
 target_include_directories(sensei_core_tests
