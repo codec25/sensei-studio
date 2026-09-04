@@ -6,8 +6,8 @@
 
 #include <functional>
 
-// F.2A workspace controls: working areas fold around the song instead of behaving
-// like equal destinations. Arrangement remains the anchor at all times.
+// F.2B workspace controls: these are compact show/hide affordances around the
+// song, not five equal app destinations. Arrangement remains visually dominant.
 class ViewControlBar final : public juce::Component
 {
 public:
@@ -20,8 +20,8 @@ public:
     ViewControlBar()
     {
         configure(create_, "Create", "Show or hide the sound browser");
-        configure(edit_, "Editor", "Show or hide the selected clip editor");
-        configure(mixer_, "Mixer", "Show or hide the mixer");
+        configure(edit_, "Edit", "Show or hide the selected clip editor");
+        configure(mixer_, "Mix", "Show or hide the mixer");
         configure(sensei_, "Sensei", "Show or hide Sensei guidance");
         configure(focus_, "Focus", "Fold supporting areas and give the song the full workspace");
 
@@ -56,26 +56,30 @@ public:
     void paint(juce::Graphics& g) override
     {
         const auto& p = studioPalette();
-        g.fillAll(p.transportBg);
-        g.setColour(p.borderSoft.withAlpha(0.7f));
-        g.drawHorizontalLine(0, 0.0f, (float) getWidth());
+        auto r = getLocalBounds().toFloat().reduced(1.0f);
+        g.setColour(p.transportBg.withAlpha(0.96f));
+        g.fillRoundedRectangle(r, 8.0f);
+        g.setColour(p.borderSoft.withAlpha(0.72f));
+        g.drawRoundedRectangle(r, 8.0f, 1.0f);
     }
 
     void resized() override
     {
-        auto area = getLocalBounds().reduced(8, 5);
-        constexpr int gap = 6;
-        const int buttonW = juce::jlimit(72, 104, juce::jmax(72, area.getWidth() / 8));
+        auto area = getLocalBounds().reduced(6, 4);
+        constexpr int gap = 4;
+        constexpr int primaryW = 64;
+        constexpr int senseiW = 72;
+        constexpr int focusW = 58;
 
-        // Working-area toggles stay grouped together, like a DAW view selector.
-        for (auto* button : { &create_, &edit_, &mixer_, &sensei_ })
+        for (auto* button : { &create_, &edit_, &mixer_ })
         {
-            button->setBounds(area.removeFromLeft(buttonW));
+            button->setBounds(area.removeFromLeft(primaryW));
             area.removeFromLeft(gap);
         }
 
-        // Focus is intentionally separated: it is a workspace command, not a view.
-        focus_.setBounds(area.removeFromRight(buttonW));
+        sensei_.setBounds(area.removeFromLeft(senseiW));
+        area.removeFromLeft(gap + 4);
+        focus_.setBounds(area.removeFromLeft(focusW));
     }
 
 private:
