@@ -73,8 +73,6 @@ MainComponent::MainComponent()
     arrangementView_.setDocument(&document_);
     arrangementView_.onEdited = [this] { handleProjectEdited(); };
     arrangementView_.onSelectionChanged = [this] {
-        // Selection drives the contextual editor. If the user explicitly closed
-        // Editor we respect that choice; reopening follows the current clip/track.
         refreshAll();
     };
 
@@ -98,10 +96,13 @@ MainComponent::MainComponent()
     viewControlBar_.onCreate = [this] { toggleCreateView(); };
     viewControlBar_.onEdit = [this] { toggleEditView(); };
     viewControlBar_.onMixer = [] {
-        // Deliberately unavailable until the real mixer exists. Never expose a
-        // dead production surface simply to make the interface look complete.
+        // Deliberately unavailable until the real mixer exists.
     };
     viewControlBar_.onSensei = [this] { toggleSenseiView(); };
+    viewControlBar_.onTrackDensity = [this] {
+        arrangementView_.cycleTrackDensity();
+        syncViewControls();
+    };
     viewControlBar_.onFocusArrangement = [this] { focusArrangement(); };
     viewControlBar_.setMixerAvailable(false);
 
@@ -168,8 +169,6 @@ void MainComponent::toggleSenseiView()
 
 void MainComponent::focusArrangement()
 {
-    // Logic/Ableton-style focus action: collapse supporting working areas without
-    // changing the project. The song immediately reclaims the whole workspace.
     themeController_.setBrowserCollapsed(true);
     themeController_.setSenseiCollapsed(true);
     browserPanel_.setCollapsed(true);
@@ -183,6 +182,7 @@ void MainComponent::syncViewControls()
     viewControlBar_.setStates(browserPanel_.isVisible() && ! browserPanel_.isCollapsed(),
                               editorOpen_, false,
                               senseiPanel_.isVisible() && ! senseiPanel_.isCollapsed());
+    viewControlBar_.setDensityLabel(arrangementView_.trackDensityLabel());
 }
 
 sensei::core::InstrumentId MainComponent::auditionInstrument() const
@@ -232,18 +232,15 @@ void MainComponent::resized()
 {
     auto area = getLocalBounds();
 
-    // Professional DAW hierarchy: a thin transport strip, then the song.
     auto top = area.removeFromTop(46).reduced(46, 5);
     brandLabel_.setBounds(top.removeFromLeft(195));
     themeBox_.setBounds(top.removeFromRight(138).reduced(0, 2));
     top.removeFromRight(8);
     transportBar_.setBounds(top);
 
-    // A slim edge strip controls supporting work areas. Unlike the earlier
-    // full-width footer it costs very little song height and reads as utility.
     constexpr int viewBarH = 36;
     auto viewStrip = area.removeFromBottom(viewBarH);
-    constexpr int viewBarW = 346;
+    constexpr int viewBarW = 430;
     viewControlBar_.setBounds(viewStrip.removeFromRight(viewBarW).reduced(4, 2));
 
     const bool browserOpen = ! browserPanel_.isCollapsed();
@@ -252,8 +249,6 @@ void MainComponent::resized()
     browserPanel_.setVisible(browserOpen);
     senseiPanel_.setVisible(senseiOpen);
 
-    // Folded panels consume zero pixels. The arrangement gets every pixel that
-    // supporting tools are not actively using.
     if (browserOpen)
     {
         const int browserW = juce::jlimit(196, 232, getWidth() / 7);
@@ -319,7 +314,6 @@ bool MainComponent::keyPressed(const juce::KeyPress& key)
             return true;
         }
 
-        // Visible controls remain primary; shortcuts are accelerators only.
         if (mods.isAltDown())
         {
             if (key.getKeyCode() == 'b' || key.getKeyCode() == 'B')
@@ -335,6 +329,12 @@ bool MainComponent::keyPressed(const juce::KeyPress& key)
             if (key.getKeyCode() == 's' || key.getKeyCode() == 'S')
             {
                 toggleSenseiView();
+                return true;
+            }
+            if (key.getKeyCode() == 'r' || key.getKeyCode() == 'R')
+            {
+                arrangementView_.cycleTrackDensity();
+                syncViewControls();
                 return true;
             }
             if (key.getKeyCode() == 'f' || key.getKeyCode() == 'F')
