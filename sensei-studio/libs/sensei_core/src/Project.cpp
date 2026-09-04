@@ -133,6 +133,28 @@ const DrumClip* Project::findDrumClip(Id trackId, Id clipId) const noexcept
     return nullptr;
 }
 
+AudioClip* Project::findAudioClip(Id trackId, Id clipId) noexcept
+{
+    if (auto* track = findTrack(trackId))
+    {
+        for (auto& clip : track->audioClips)
+            if (clip.id == clipId)
+                return &clip;
+    }
+    return nullptr;
+}
+
+const AudioClip* Project::findAudioClip(Id trackId, Id clipId) const noexcept
+{
+    if (const auto* track = findTrack(trackId))
+    {
+        for (const auto& clip : track->audioClips)
+            if (clip.id == clipId)
+                return &clip;
+    }
+    return nullptr;
+}
+
 Section* Project::findSection(Id sectionId) noexcept
 {
     for (auto& section : sections_)
